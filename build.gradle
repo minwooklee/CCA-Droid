@@ -10,5 +10,5 @@ repositories {
 }
 
 dependencies {
-
+    implementation 'net.dongliu:apk-parser:2.6.10'
 }
