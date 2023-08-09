@@ -1,6 +1,7 @@
 package com.ccadroid;
 
 import com.ccadroid.inspect.ApkParser;
+import com.ccadroid.util.Soot;
 
 public class EngineMain {
 
@@ -17,5 +18,8 @@ public class EngineMain {
         if (packageName != null) {
             System.out.println("[*] Package name : " + packageName);
         }
+
+        Soot.initialize(apkPath);
+        Soot.loadDexClasses();
     }
 }
