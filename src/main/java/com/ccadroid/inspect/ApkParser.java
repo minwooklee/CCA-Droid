@@ -14,51 +14,22 @@ import java.io.StringReader;
 import java.util.ArrayList;
 
 public class ApkParser {
+    private final String apkPath;
     private ApkFile apkFile;
     private String packageName;
-    private String applicationClassName;
+    private String appClassName;
     private static final ArrayList<String> appComponents = new ArrayList<>();
     private static final ArrayList<String> dexClassNames = new ArrayList<>();
 
     public ApkParser(String apkPath) {
-        if (apkPath == null) {
-            return;
-        }
-
-        loadAPKFile(apkPath);
-        parseManifest();
-        setDexClassNames();
+        this.apkPath = apkPath;
     }
 
     public static ApkParser getInstance() {
         return Holder.instance;
     }
 
-    public String getPackageName() {
-        return packageName;
-    }
-
-    public String getApplicationClassName() {
-        return applicationClassName;
-    }
-
-    public ArrayList<String> getAppComponents() {
-        return appComponents;
-    }
-
-    public ArrayList<String> getDexClassNames() {
-        return dexClassNames;
-    }
-
-    private static class Holder {
-        private static final ApkParser instance = new ApkParser(null);
-    }
-
-    private void loadAPKFile(String apkPath) {
-        if (apkPath == null) {
-            return;
-        }
-
+    public void loadAPKFile() {
         try {
             apkFile = new ApkFile(apkPath);
         } catch (IOException e) {
@@ -67,14 +38,13 @@ public class ApkParser {
         }
     }
 
-    private void parseManifest() {
+    public void parseManifest() {
         try {
             DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
             DocumentBuilder builder = factory.newDocumentBuilder();
             String manifestXml = apkFile.getManifestXml();
             Document document = builder.parse(new InputSource(new StringReader(manifestXml)));
             Element root = document.getDocumentElement();
-
             packageName = root.getAttribute("package");
 
             NodeList childNodes = root.getChildNodes();
@@ -97,7 +67,7 @@ public class ApkParser {
                         continue;
                     }
 
-                    applicationClassName = attribute.getNodeValue();
+                    appClassName = attribute.getNodeValue();
                     break;
                 }
             }
@@ -137,7 +107,7 @@ public class ApkParser {
         }
     }
 
-    private void setDexClassNames() {
+    public void setDexClassNames() {
         try {
             DexClass[] classes = apkFile.getDexClasses();
             for (DexClass c : classes) {
@@ -151,5 +121,25 @@ public class ApkParser {
         } catch (IOException e) {
             System.out.println("[*] ERROR : Cannot get class names!");
         }
+    }
+
+    public String getPackageName() {
+        return packageName;
+    }
+
+    public String getAppClassName() {
+        return appClassName;
+    }
+
+    public ArrayList<String> getAppComponents() {
+        return appComponents;
+    }
+
+    public ArrayList<String> getDexClassNames() {
+        return dexClassNames;
+    }
+
+    private static class Holder {
+        private static final ApkParser instance = new ApkParser(null);
     }
 }
