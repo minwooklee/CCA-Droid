@@ -14,12 +14,12 @@ import java.io.StringReader;
 import java.util.ArrayList;
 
 public class ApkParser {
+    private static final ArrayList<String> appComponents = new ArrayList<>();
+    private static final ArrayList<String> dexClassNames = new ArrayList<>();
     private final String apkPath;
     private ApkFile apkFile;
     private String packageName;
     private String appClassName;
-    private static final ArrayList<String> appComponents = new ArrayList<>();
-    private static final ArrayList<String> dexClassNames = new ArrayList<>();
 
     public ApkParser(String apkPath) {
         this.apkPath = apkPath;

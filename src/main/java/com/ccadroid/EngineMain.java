@@ -1,7 +1,8 @@
 package com.ccadroid;
 
 import com.ccadroid.inspect.ApkParser;
-import com.ccadroid.util.Soot;
+import com.ccadroid.inspect.CodeInspector;
+import com.ccadroid.util.soot.Soot;
 
 public class EngineMain {
 
@@ -25,5 +26,8 @@ public class EngineMain {
 
         Soot.initialize(apkPath);
         Soot.loadDexClasses();
+
+        CodeInspector codeInspector = CodeInspector.getInstance();
+        codeInspector.buildCallGraph();
     }
 }

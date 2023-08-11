@@ -1,4 +1,4 @@
-package com.ccadroid.util;
+package com.ccadroid.util.soot;
 
 import com.ccadroid.inspect.ApkParser;
 import soot.Scene;
@@ -8,6 +8,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 
 public class Soot {
+
+    private Soot() throws InstantiationException {
+        throw new InstantiationException();
+    }
 
     public static void initialize(String apkPath) {
         String sdkHomeDir = System.getenv("ANDROID_SDK_HOME");
@@ -40,9 +44,5 @@ public class Soot {
 
         Scene.v().loadBasicClasses();
         Scene.v().loadNecessaryClasses();
-    }
-
-    private Soot() throws InstantiationException {
-        throw new InstantiationException();
     }
 }
