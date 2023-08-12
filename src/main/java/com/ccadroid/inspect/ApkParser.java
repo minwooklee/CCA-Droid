@@ -16,20 +16,15 @@ import java.util.ArrayList;
 public class ApkParser {
     private static final ArrayList<String> appComponents = new ArrayList<>();
     private static final ArrayList<String> dexClassNames = new ArrayList<>();
-    private final String apkPath;
     private ApkFile apkFile;
     private String packageName;
     private String appClassName;
-
-    public ApkParser(String apkPath) {
-        this.apkPath = apkPath;
-    }
 
     public static ApkParser getInstance() {
         return Holder.instance;
     }
 
-    public void loadAPKFile() {
+    public void loadAPKFile(String apkPath) {
         try {
             apkFile = new ApkFile(apkPath);
         } catch (IOException e) {
@@ -140,6 +135,6 @@ public class ApkParser {
     }
 
     private static class Holder {
-        private static final ApkParser instance = new ApkParser(null);
+        private static final ApkParser instance = new ApkParser();
     }
 }

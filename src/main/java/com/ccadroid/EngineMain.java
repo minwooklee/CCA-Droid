@@ -15,8 +15,8 @@ public class EngineMain {
         String apkPath = args[0];
         System.out.println("[*] Analyzing APK : " + apkPath);
 
-        ApkParser apkParser = new ApkParser(apkPath);
-        apkParser.loadAPKFile();
+        ApkParser apkParser = ApkParser.getInstance();
+        apkParser.loadAPKFile(apkPath);
         apkParser.parseManifest();
         apkParser.setDexClassNames();
         String packageName = apkParser.getPackageName();
