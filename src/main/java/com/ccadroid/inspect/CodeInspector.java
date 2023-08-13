@@ -100,7 +100,6 @@ public class CodeInspector {
                             case ASSIGN_SIGNATURE_CONSTANT: {
                                 String signature = getSignature(u);
                                 String returnType = getReturnType(signature);
-
                                 if (constantValueMap.containsKey(signature) || returnType.equals("boolean")) {
                                     continue;
                                 }
@@ -185,10 +184,6 @@ public class CodeInspector {
 
     public ArrayList<ArrayList<String>> traverseCallers(String signature, boolean upper) {
         return callGraph.getListOfIds(signature, upper);
-    }
-
-    private static class Holder {
-        private static final CodeInspector instance = new CodeInspector();
     }
 
     private void parseStaticFinalValue(SootClass sootClass) {
@@ -281,5 +276,9 @@ public class CodeInspector {
         }
 
         return value;
+    }
+
+    private static class Holder {
+        private static final CodeInspector instance = new CodeInspector();
     }
 }

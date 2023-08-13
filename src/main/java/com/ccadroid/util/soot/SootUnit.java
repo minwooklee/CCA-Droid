@@ -1,11 +1,16 @@
 package com.ccadroid.util.soot;
 
+import com.opencsv.CSVReader;
+import com.opencsv.exceptions.CsvValidationException;
 import soot.Unit;
 import soot.UnitBox;
 import soot.Value;
+import soot.ValueBox;
 import soot.jimple.*;
 import soot.jimple.internal.*;
 
+import java.io.IOException;
+import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.StringTokenizer;
@@ -46,6 +51,10 @@ public class SootUnit {
     public static final int RETURN = 0x02000000;
     public static final int RETURN_VALUE = RETURN | 0x00000001;
     public static final int RETURN_VOID = RETURN | 0x00000002;
+
+    private SootUnit() throws InstantiationException {
+        throw new InstantiationException();
+    }
 
     public static int getUnitType(Unit unit) {
         int type = -1;
@@ -127,6 +136,29 @@ public class SootUnit {
         return type;
     }
 
+    public static ValueBox getLocalValueBox(Unit unit, int unitType) {
+        if ((unitType & INVOKE) != INVOKE) {
+            return null;
+        }
+
+        ValueBox valueBox;
+        if ((unitType & ASSIGN) == ASSIGN) {
+            Value value = getRightValue(unit, unitType);
+            if (value == null) {
+                return null;
+            }
+
+            InstanceInvokeExpr expr = (InstanceInvokeExpr) value;
+            valueBox = expr.getBaseBox();
+        } else {
+            InvokeStmt stmt = (InvokeStmt) unit;
+            InstanceInvokeExpr expr = (InstanceInvokeExpr) stmt.getInvokeExpr();
+            valueBox = expr.getBaseBox();
+        }
+
+        return valueBox;
+    }
+
     public static String getSignature(Unit unit) {
         String unitStr = unit.toString();
 
@@ -163,35 +195,80 @@ public class SootUnit {
         return tokenizer.nextToken();
     }
 
-    public static Value getLeftValue(Unit unit, int unitType) {
-        Value value = null;
+    public static ArrayList<String> getParamTypes(String signature) {
+        String str = signature.substring(signature.indexOf("(") + 1, signature.length() - 2);
+
+        return convertToList(str);
+    }
+
+    public static ArrayList<ValueBox> getParamValues(Unit unit, int unitType) {
+        if ((unitType & INVOKE) != INVOKE) {
+            return new ArrayList<>();
+        }
+
+        InvokeExpr expr;
+        if ((unitType & ASSIGN) == ASSIGN) {
+            Value value = getRightValue(unit, unitType);
+            expr = (value == null) ? null : (InvokeExpr) value;
+        } else {
+            JInvokeStmt stmt = (JInvokeStmt) unit;
+            expr = stmt.getInvokeExpr();
+        }
+
+        if (expr == null) {
+            return new ArrayList<>();
+        }
+
+        ArrayList<ValueBox> paramValues = new ArrayList<>();
+        for (int i = 0; i < expr.getArgCount(); i++) {
+            ValueBox argBox = expr.getArgBox(i);
+            paramValues.add(argBox);
+        }
+
+        return paramValues;
+    }
+
+    public static ValueBox getLeftValueBox(Unit unit, int unitType) {
+        ValueBox leftValueBox = null;
 
         if ((unitType & IDENTITY) == IDENTITY) {
             IdentityStmt stmt = (JIdentityStmt) unit;
-            value = stmt.getLeftOp();
+            leftValueBox = stmt.getLeftOpBox();
         } else if ((unitType & ASSIGN) == ASSIGN) {
             JAssignStmt stmt = (JAssignStmt) unit;
-            value = stmt.getLeftOp();
+            leftValueBox = stmt.getLeftOpBox();
         }
 
-        return value;
+        return leftValueBox;
     }
 
-    public static Value getRightValue(Unit unit, int unitType) {
-        Value value = null;
+    public static Value getLeftValue(Unit unit, int unitType) {
+        ValueBox valueBox = getLeftValueBox(unit, unitType);
+
+        return (valueBox == null) ? null : valueBox.getValue();
+    }
+
+    public static ValueBox getRightValueBox(Unit unit, int unitType) {
+        ValueBox rightValueBox = null;
 
         if ((unitType & IDENTITY) == IDENTITY) {
             JIdentityStmt stmt = (JIdentityStmt) unit;
-            value = stmt.getRightOp();
+            rightValueBox = stmt.getRightOpBox();
         } else if ((unitType & RETURN_VALUE) == RETURN_VALUE) {
             JReturnStmt stmt = (JReturnStmt) unit;
-            value = stmt.getOp();
+            rightValueBox = stmt.getOpBox();
         } else if ((unitType & ASSIGN) == ASSIGN) {
             JAssignStmt stmt = (JAssignStmt) unit;
-            value = stmt.getRightOp();
+            rightValueBox = stmt.getRightOpBox();
         }
 
-        return value;
+        return rightValueBox;
+    }
+
+    public static Value getRightValue(Unit unit, int unitType) {
+        ValueBox valueBox = getRightValueBox(unit, unitType);
+
+        return (valueBox == null) ? null : valueBox.getValue();
     }
 
     public static Unit getTargetUnit(Unit unit, int unitType) {
@@ -219,10 +296,6 @@ public class SootUnit {
         }
 
         return targetUnits;
-    }
-
-    private SootUnit() throws InstantiationException {
-        throw new InstantiationException();
     }
 
     private static boolean isInvoke(Unit unit) {
@@ -448,5 +521,23 @@ public class SootUnit {
 
     private static boolean isReturnVoid(Unit unit) {
         return unit instanceof JReturnVoidStmt;
+    }
+
+    private static ArrayList<String> convertToList(String s) {
+        ArrayList<String> list = new ArrayList<>();
+
+        try {
+            StringReader stringReader = new StringReader(s);
+            CSVReader csvReader = new CSVReader(stringReader);
+            String[] tokens = csvReader.readNext();
+            for (String t : tokens) {
+                t = t.trim();
+                list.add(t);
+            }
+        } catch (IOException | CsvValidationException | NullPointerException ignored) {
+
+        }
+
+        return list;
     }
 }

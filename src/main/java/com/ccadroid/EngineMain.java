@@ -2,7 +2,12 @@ package com.ccadroid;
 
 import com.ccadroid.inspect.ApkParser;
 import com.ccadroid.inspect.CodeInspector;
+import com.ccadroid.inspect.SlicingCriteriaGenerator;
+import com.ccadroid.model.SlicingCriterion;
 import com.ccadroid.util.soot.Soot;
+
+import java.io.File;
+import java.util.ArrayList;
 
 public class EngineMain {
 
@@ -29,5 +34,22 @@ public class EngineMain {
 
         CodeInspector codeInspector = CodeInspector.getInstance();
         codeInspector.buildCallGraph();
+
+        if (args.length < 2) {
+            System.out.println("[*] ERROR : No rule file dir was entered!");
+            System.exit(1);
+        }
+
+        File ruleFileDir = new File(args[1]);
+        if (!ruleFileDir.exists()) {
+            System.out.println("[*] ERROR : No rule file dir is exist!");
+            System.exit(1);
+        }
+
+        SlicingCriteriaGenerator slicingCriteriaGenerator = SlicingCriteriaGenerator.getInstance();
+        ArrayList<SlicingCriterion> slicingCriteria = slicingCriteriaGenerator.createSlicingCriteria(ruleFileDir);
+        for (SlicingCriterion sc : slicingCriteria) {
+
+        }
     }
 }

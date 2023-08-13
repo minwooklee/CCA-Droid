@@ -18,4 +18,6 @@ dependencies {
 
     implementation 'org.graphstream:gs-core:2.0'
     implementation 'org.graphstream:gs-ui-javafx:2.0'
+
+    implementation 'org.json:json:20230618'
 }
