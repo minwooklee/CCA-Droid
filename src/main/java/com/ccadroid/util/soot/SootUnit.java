@@ -229,17 +229,20 @@ public class SootUnit {
     }
 
     public static ValueBox getLeftValueBox(Unit unit, int unitType) {
-        ValueBox leftValueBox = null;
-
-        if ((unitType & IDENTITY) == IDENTITY) {
-            IdentityStmt stmt = (JIdentityStmt) unit;
-            leftValueBox = stmt.getLeftOpBox();
-        } else if ((unitType & ASSIGN) == ASSIGN) {
-            JAssignStmt stmt = (JAssignStmt) unit;
-            leftValueBox = stmt.getLeftOpBox();
+        if ((unitType & ASSIGN) != ASSIGN) {
+            return null;
         }
 
-        return leftValueBox;
+        ValueBox valueBox;
+        if ((unitType & IDENTITY) == IDENTITY) {
+            IdentityStmt stmt = (JIdentityStmt) unit;
+            valueBox = stmt.getLeftOpBox();
+        } else {
+            JAssignStmt stmt = (JAssignStmt) unit;
+            valueBox = stmt.getLeftOpBox();
+        }
+
+        return valueBox;
     }
 
     public static Value getLeftValue(Unit unit, int unitType) {
@@ -249,20 +252,23 @@ public class SootUnit {
     }
 
     public static ValueBox getRightValueBox(Unit unit, int unitType) {
-        ValueBox rightValueBox = null;
-
-        if ((unitType & IDENTITY) == IDENTITY) {
-            JIdentityStmt stmt = (JIdentityStmt) unit;
-            rightValueBox = stmt.getRightOpBox();
-        } else if ((unitType & RETURN_VALUE) == RETURN_VALUE) {
-            JReturnStmt stmt = (JReturnStmt) unit;
-            rightValueBox = stmt.getOpBox();
-        } else if ((unitType & ASSIGN) == ASSIGN) {
-            JAssignStmt stmt = (JAssignStmt) unit;
-            rightValueBox = stmt.getRightOpBox();
+        if (((unitType & ASSIGN) != ASSIGN) && (unitType != RETURN_VALUE)) {
+            return null;
         }
 
-        return rightValueBox;
+        ValueBox valueBox;
+        if ((unitType & IDENTITY) == IDENTITY) {
+            JIdentityStmt stmt = (JIdentityStmt) unit;
+            valueBox = stmt.getRightOpBox();
+        } else if (unitType == RETURN_VALUE) {
+            JReturnStmt stmt = (JReturnStmt) unit;
+            valueBox = stmt.getOpBox();
+        } else {
+            JAssignStmt stmt = (JAssignStmt) unit;
+            valueBox = stmt.getRightOpBox();
+        }
+
+        return valueBox;
     }
 
     public static Value getRightValue(Unit unit, int unitType) {
@@ -271,14 +277,21 @@ public class SootUnit {
         return (valueBox == null) ? null : valueBox.getValue();
     }
 
-    public static Unit getTargetUnit(Unit unit, int unitType) {
-        Unit targetUnit = null;
+    public static String convertToStr(Value value) {
+        return (value == null) ? "null" : value.toString();
+    }
 
+    public static Unit getTargetUnit(Unit unit, int unitType) {
+        if ((unitType != IF) && (unitType != GOTO)) {
+            return null;
+        }
+
+        Unit targetUnit;
         if (unitType == IF) {
             JIfStmt stmt = (JIfStmt) unit;
             UnitBox unitBox = stmt.getTargetBox();
             targetUnit = unitBox.getUnit();
-        } else if (unitType == GOTO) {
+        } else {
             JGotoStmt stmt = (JGotoStmt) unit;
             targetUnit = stmt.getTarget();
         }
@@ -339,8 +352,8 @@ public class SootUnit {
             return false;
         }
 
-        Value rightValue = getRightValue(unit, ASSIGN);
-        InvokeExpr expr = (InvokeExpr) rightValue;
+        Value value = getRightValue(unit, ASSIGN);
+        InvokeExpr expr = (value == null) ? null : (InvokeExpr) value;
 
         return expr instanceof JVirtualInvokeExpr;
     }
@@ -350,8 +363,8 @@ public class SootUnit {
             return false;
         }
 
-        Value rightValue = getRightValue(unit, ASSIGN);
-        InvokeExpr expr = (InvokeExpr) rightValue;
+        Value value = getRightValue(unit, ASSIGN);
+        InvokeExpr expr = (value == null) ? null : (InvokeExpr) value;
 
         return expr instanceof JStaticInvokeExpr;
     }
@@ -361,8 +374,8 @@ public class SootUnit {
             return false;
         }
 
-        Value rightValue = getRightValue(unit, ASSIGN);
-        InvokeExpr expr = (InvokeExpr) rightValue;
+        Value value = getRightValue(unit, ASSIGN);
+        InvokeExpr expr = (value == null) ? null : (InvokeExpr) value;
 
         return expr instanceof JInterfaceInvokeExpr;
     }
@@ -372,8 +385,8 @@ public class SootUnit {
             return false;
         }
 
-        Value rightValue = getRightValue(unit, ASSIGN);
-        InvokeExpr expr = (InvokeExpr) rightValue;
+        Value value = getRightValue(unit, ASSIGN);
+        InvokeExpr expr = (value == null) ? null : (InvokeExpr) value;
 
         return expr instanceof JSpecialInvokeExpr;
     }
@@ -387,9 +400,9 @@ public class SootUnit {
             return false;
         }
 
-        Value rightValue = getRightValue(unit, PARAMETER);
+        Value value = getRightValue(unit, PARAMETER);
 
-        return rightValue instanceof ParameterRef;
+        return value instanceof ParameterRef;
     }
 
     private static boolean isCaughtException(Unit unit) {
@@ -397,29 +410,29 @@ public class SootUnit {
             return false;
         }
 
-        Value rightValue = getRightValue(unit, CAUGHT_EXCEPTION);
+        Value value = getRightValue(unit, CAUGHT_EXCEPTION);
 
-        return rightValue instanceof CaughtExceptionRef;
+        return value instanceof CaughtExceptionRef;
     }
 
     private static boolean isNewInstance(Unit unit) {
-        Value rightValue = getRightValue(unit, ASSIGN);
-        String rightValueStr = rightValue.toString();
+        Value value = getRightValue(unit, ASSIGN);
+        String valueStr = convertToStr(value);
 
-        return (rightValue instanceof JNewExpr) && (!rightValueStr.endsWith("Exception"));
+        return (value instanceof JNewExpr) && (!valueStr.endsWith("Exception"));
     }
 
     private static boolean isNewArray(Unit unit) {
-        Value rightValue = getRightValue(unit, ASSIGN);
+        Value value = getRightValue(unit, ASSIGN);
 
-        return rightValue instanceof JNewArrayExpr;
+        return value instanceof JNewArrayExpr;
     }
 
     private static boolean isNewException(Unit unit) {
-        Value rightValue = getRightValue(unit, ASSIGN);
-        String rightValueStr = rightValue.toString();
+        Value value = getRightValue(unit, ASSIGN);
+        String valueStr = convertToStr(value);
 
-        return (rightValue instanceof JNewExpr) && (rightValueStr.endsWith("Exception"));
+        return (value instanceof JNewExpr) && (valueStr.endsWith("Exception"));
     }
 
     private static boolean isAssignVariableConstant(Unit unit) {
@@ -486,21 +499,21 @@ public class SootUnit {
     }
 
     private static boolean isCast(Unit unit) {
-        Value rightValue = getRightValue(unit, CAST);
+        Value value = getRightValue(unit, CAST);
 
-        return rightValue instanceof JCastExpr;
+        return value instanceof JCastExpr;
     }
 
     private static boolean isLengthOf(Unit unit) {
-        Value rightValue = getRightValue(unit, LENGTH_OF);
+        Value value = getRightValue(unit, LENGTH_OF);
 
-        return rightValue instanceof JLengthExpr;
+        return value instanceof JLengthExpr;
     }
 
     private static boolean isInstanceOf(Unit unit) {
-        Value rightValue = getRightValue(unit, INSTANCE_OF);
+        Value value = getRightValue(unit, INSTANCE_OF);
 
-        return rightValue instanceof JInstanceOfExpr;
+        return value instanceof JInstanceOfExpr;
     }
 
     private static boolean isIf(Unit unit) {

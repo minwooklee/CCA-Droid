@@ -104,12 +104,12 @@ public class CodeInspector {
                                     continue;
                                 }
 
-                                Value rightValue = getRightValue(u, unitType);
-                                String valueStr = rightValue.toString();
+                                Value oldValue = getRightValue(u, unitType);
+                                String valueStr = convertToStr(oldValue);
                                 valueStr = valueStr.replace("\"", "");
 
-                                Value value = convertToValue(signature, valueStr);
-                                constantValueMap.put(signature, value);
+                                Value newValue = convertToValue(returnType, valueStr);
+                                constantValueMap.put(signature, newValue);
                                 break;
                             }
 
@@ -204,11 +204,12 @@ public class CodeInspector {
             }
 
             String key = f.getSignature();
+            String returnType = getReturnType(key);
             String tagStr = tag.toString();
             String[] strArr = tagStr.split("ConstantValue: ");
             int length = strArr.length;
             if (length > 1) {
-                Value value = convertToValue(key, strArr[1]);
+                Value value = convertToValue(returnType, strArr[1]);
                 constantValueMap.putIfAbsent(key, value);
             } else {
                 constantValueMap.putIfAbsent(key, StringConstant.v(""));
@@ -216,13 +217,12 @@ public class CodeInspector {
         }
     }
 
-    private Value convertToValue(String signature, String valueStr) {
+    private Value convertToValue(String returnType, String valueStr) {
         if (valueStr.equals("null")) {
             return NullConstant.v();
         }
 
         Value value = null;
-        String returnType = getReturnType(signature);
         switch (returnType) {
             case "boolean":
             case "short":

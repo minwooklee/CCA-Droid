@@ -122,10 +122,13 @@ public class SlicingCriteriaGenerator {
             switch (unitType) {
                 case ASSIGN_SIGNATURE_VARIABLE:
                 case RETURN_VALUE: {
-                    ValueBox rightValueBox = getRightValueBox(unit, unitType);
-                    Value rightValue = rightValueBox.getValue();
-                    String rightValueStr = rightValue.toString();
-                    targetVariableMap.put(rightValueStr, rightValueBox);
+                    ValueBox valueBox = getRightValueBox(unit, unitType);
+                    if (valueBox != null) {
+                        Value value = valueBox.getValue();
+                        String valueStr = value.toString();
+                        targetVariableMap.put(valueStr, valueBox);
+                    }
+
                     break;
                 }
 
@@ -143,11 +146,11 @@ public class SlicingCriteriaGenerator {
                     }
 
                     if (targetParamNums.contains("-1")) {
-                        ValueBox localValueBox = getLocalValueBox(unit, unitType);
-                        if (localValueBox != null) {
-                            Value localValue = localValueBox.getValue();
-                            String localValueStr = localValue.toString();
-                            targetVariableMap.put(localValueStr, localValueBox);
+                        ValueBox valueBox = getLocalValueBox(unit, unitType);
+                        if (valueBox != null) {
+                            Value value = valueBox.getValue();
+                            String valueStr = value.toString();
+                            targetVariableMap.put(valueStr, valueBox);
                         }
                     }
 
@@ -199,10 +202,6 @@ public class SlicingCriteriaGenerator {
 
     public SlicingCriterion getSlicingCriterion(String hashCode) {
         return slicingCriterionMap.get(hashCode);
-    }
-
-    private static class Holder {
-        private static final SlicingCriteriaGenerator instance = new SlicingCriteriaGenerator();
     }
 
     private ArrayList<SlicingCriterion> getSlicingCandidates(File ruleFileDir) {
@@ -303,5 +302,9 @@ public class SlicingCriteriaGenerator {
         }
 
         listOfCallers.removeAll(targets);
+    }
+
+    private static class Holder {
+        private static final SlicingCriteriaGenerator instance = new SlicingCriteriaGenerator();
     }
 }
