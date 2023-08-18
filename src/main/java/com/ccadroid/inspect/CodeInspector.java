@@ -12,8 +12,6 @@ import soot.util.Chain;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import static com.ccadroid.util.graph.BaseGraph.EdgeType.*;
 import static com.ccadroid.util.soot.SootUnit.*;
@@ -42,14 +40,10 @@ public class CodeInspector {
     }
 
     public void buildCallGraph() {
-        String excludeRegex = "^(dalvik|android|kotlin|io.flutter|scala).*$";
-        Pattern pattern = Pattern.compile(excludeRegex);
-
         ApkParser apkParser = ApkParser.getInstance();
         ArrayList<String> dexClassNames = apkParser.getDexClassNames();
         for (String name : dexClassNames) {
-            Matcher matcher = pattern.matcher(name);
-            if (matcher.matches()) {
+            if (name.startsWith("dalvik") || name.startsWith("android") || name.startsWith("kotlin") || name.startsWith("io.flutter") || name.startsWith("scala")) {
                 continue;
             }
 
@@ -204,16 +198,19 @@ public class CodeInspector {
             }
 
             String key = f.getSignature();
-            String returnType = getReturnType(key);
+            Value value;
+
             String tagStr = tag.toString();
             String[] strArr = tagStr.split("ConstantValue: ");
             int length = strArr.length;
             if (length > 1) {
-                Value value = convertToValue(returnType, strArr[1]);
-                constantValueMap.putIfAbsent(key, value);
+                String returnType = getReturnType(key);
+                value = convertToValue(returnType, strArr[1]);
             } else {
-                constantValueMap.putIfAbsent(key, StringConstant.v(""));
+                value = StringConstant.v("");
             }
+
+            constantValueMap.putIfAbsent(key, value);
         }
     }
 
