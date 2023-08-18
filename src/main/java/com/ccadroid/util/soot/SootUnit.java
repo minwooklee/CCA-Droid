@@ -59,68 +59,56 @@ public class SootUnit {
     public static int getUnitType(Unit unit) {
         int type = -1;
 
-        if (isInvoke(unit)) {
-            if (isVirtualInvoke(unit)) {
-                type = VIRTUAL_INVOKE;
-            } else if (isStaticInvoke(unit)) {
-                type = STATIC_INVOKE;
-            } else if (isInterfaceInvoke(unit)) {
-                type = INTERFACE_INVOKE;
-            } else if (isSpecialInvoke(unit)) {
-                type = SPECIAL_INVOKE;
-            } else if (isAssignVirtualInvoke(unit)) {
-                type = ASSIGN_VIRTUAL_INVOKE;
-            } else if (isAssignStaticInvoke(unit)) {
-                type = ASSIGN_STATIC_INVOKE;
-            } else if (isAssignInterfaceInvoke(unit)) {
-                type = ASSIGN_INTERFACE_INVOKE;
-            } else if (isAssignSpecialInvoke(unit)) {
-                type = ASSIGN_SPECIAL_INVOKE;
-            } else {
-                type = INVOKE;
-            }
-        } else if (isAssign(unit)) {
-            if (isNewInstance(unit)) {
-                type = NEW_INSTANCE;
-            } else if (isNewArray(unit)) {
-                type = NEW_ARRAY;
-            } else if (isNewException(unit)) {
-                type = NEW_EXCEPTION;
-            } else if (isAssignVariableConstant(unit)) {
-                type = ASSIGN_VARIABLE_CONSTANT;
-            } else if (isAssignVariableVariable(unit)) {
-                type = ASSIGN_VARIABLE_VARIABLE;
-            } else if (isAssignVariableArray(unit)) {
-                type = ASSIGN_VARIABLE_ARRAY;
-            } else if (isAssignVariableSignature(unit)) {
-                type = ASSIGN_VARIABLE_SIGNATURE;
-            } else if (isAssignVariableAdd(unit)) {
-                type = ASSIGN_VARIABLE_ADD;
-            } else if (isAssignArrayConstant(unit)) {
-                type = ASSIGN_ARRAY_CONSTANT;
-            } else if (isAssignArrayVariable(unit)) {
-                type = ASSIGN_ARRAY_VARIABLE;
-            } else if (isAssignSignatureConstant(unit)) {
-                type = ASSIGN_SIGNATURE_CONSTANT;
-            } else if (isAssignSignatureVariable(unit)) {
-                type = ASSIGN_SIGNATURE_VARIABLE;
-            } else if (isCast(unit)) {
-                type = CAST;
-            } else if (isLengthOf(unit)) {
-                type = LENGTH_OF;
-            } else if (isInstanceOf(unit)) {
-                type = INSTANCE_OF;
-            } else {
-                type = ASSIGN;
-            }
-        } else if (isIdentity(unit)) {
-            if (isParameter(unit)) {
-                type = PARAMETER;
-            } else if (isCaughtException(unit)) {
-                type = CAUGHT_EXCEPTION;
-            } else {
-                type = IDENTITY;
-            }
+        if (isVirtualInvoke(unit)) {
+            type = VIRTUAL_INVOKE;
+        } else if (isStaticInvoke(unit)) {
+            type = STATIC_INVOKE;
+        } else if (isInterfaceInvoke(unit)) {
+            type = INTERFACE_INVOKE;
+        } else if (isSpecialInvoke(unit)) {
+            type = SPECIAL_INVOKE;
+        } else if (isAssignVirtualInvoke(unit)) {
+            type = ASSIGN_VIRTUAL_INVOKE;
+        } else if (isAssignStaticInvoke(unit)) {
+            type = ASSIGN_STATIC_INVOKE;
+        } else if (isAssignInterfaceInvoke(unit)) {
+            type = ASSIGN_INTERFACE_INVOKE;
+        } else if (isAssignSpecialInvoke(unit)) {
+            type = ASSIGN_SPECIAL_INVOKE;
+        } else if (isParameter(unit)) {
+            type = PARAMETER;
+        } else if (isCaughtException(unit)) {
+            type = CAUGHT_EXCEPTION;
+        } else if (isNewInstance(unit)) {
+            type = NEW_INSTANCE;
+        } else if (isNewArray(unit)) {
+            type = NEW_ARRAY;
+        } else if (isNewException(unit)) {
+            type = NEW_EXCEPTION;
+        } else if (isAssignVariableConstant(unit)) {
+            type = ASSIGN_VARIABLE_CONSTANT;
+        } else if (isAssignVariableVariable(unit)) {
+            type = ASSIGN_VARIABLE_VARIABLE;
+        } else if (isAssignVariableArray(unit)) {
+            type = ASSIGN_VARIABLE_ARRAY;
+        } else if (isAssignVariableSignature(unit)) {
+            type = ASSIGN_VARIABLE_SIGNATURE;
+        } else if (isAssignVariableAdd(unit)) {
+            type = ASSIGN_VARIABLE_ADD;
+        } else if (isAssignSignatureConstant(unit)) {
+            type = ASSIGN_SIGNATURE_CONSTANT;
+        } else if (isAssignSignatureVariable(unit)) {
+            type = ASSIGN_SIGNATURE_VARIABLE;
+        } else if (isAssignArrayConstant(unit)) {
+            type = ASSIGN_ARRAY_CONSTANT;
+        } else if (isAssignArrayVariable(unit)) {
+            type = ASSIGN_ARRAY_VARIABLE;
+        } else if (isCast(unit)) {
+            type = CAST;
+        } else if (isLengthOf(unit)) {
+            type = LENGTH_OF;
+        } else if (isInstanceOf(unit)) {
+            type = INSTANCE_OF;
         } else if (isIf(unit)) {
             type = IF;
         } else if (isGoto(unit)) {
@@ -131,6 +119,8 @@ public class SootUnit {
             type = RETURN_VALUE;
         } else if (isReturnVoid(unit)) {
             type = RETURN_VOID;
+        } else if (isAssign(unit)) {
+            type = ASSIGN; // other assign unit
         }
 
         return type;
@@ -316,6 +306,10 @@ public class SootUnit {
     }
 
     private static boolean isVirtualInvoke(Unit unit) {
+        if (!isInvoke(unit)) {
+            return false;
+        }
+
         InvokeStmt stmt = (JInvokeStmt) unit;
         InvokeExpr expr = stmt.getInvokeExpr();
 
@@ -323,6 +317,10 @@ public class SootUnit {
     }
 
     private static boolean isStaticInvoke(Unit unit) {
+        if (!isInvoke(unit)) {
+            return false;
+        }
+
         InvokeStmt stmt = (JInvokeStmt) unit;
         InvokeExpr expr = stmt.getInvokeExpr();
 
@@ -330,6 +328,10 @@ public class SootUnit {
     }
 
     private static boolean isInterfaceInvoke(Unit unit) {
+        if (!isInvoke(unit)) {
+            return false;
+        }
+
         InvokeStmt stmt = (JInvokeStmt) unit;
         InvokeExpr expr = stmt.getInvokeExpr();
 
@@ -337,6 +339,10 @@ public class SootUnit {
     }
 
     private static boolean isSpecialInvoke(Unit unit) {
+        if (!isInvoke(unit)) {
+            return false;
+        }
+
         InvokeStmt stmt = (JInvokeStmt) unit;
         InvokeExpr expr = stmt.getInvokeExpr();
 
@@ -353,9 +359,8 @@ public class SootUnit {
         }
 
         Value value = getRightValue(unit, ASSIGN);
-        InvokeExpr expr = (value == null) ? null : (InvokeExpr) value;
 
-        return expr instanceof JVirtualInvokeExpr;
+        return value instanceof JVirtualInvokeExpr;
     }
 
     private static boolean isAssignStaticInvoke(Unit unit) {
@@ -364,9 +369,8 @@ public class SootUnit {
         }
 
         Value value = getRightValue(unit, ASSIGN);
-        InvokeExpr expr = (value == null) ? null : (InvokeExpr) value;
 
-        return expr instanceof JStaticInvokeExpr;
+        return value instanceof JStaticInvokeExpr;
     }
 
     private static boolean isAssignInterfaceInvoke(Unit unit) {
@@ -375,9 +379,8 @@ public class SootUnit {
         }
 
         Value value = getRightValue(unit, ASSIGN);
-        InvokeExpr expr = (value == null) ? null : (InvokeExpr) value;
 
-        return expr instanceof JInterfaceInvokeExpr;
+        return value instanceof JInterfaceInvokeExpr;
     }
 
     private static boolean isAssignSpecialInvoke(Unit unit) {
@@ -386,9 +389,8 @@ public class SootUnit {
         }
 
         Value value = getRightValue(unit, ASSIGN);
-        InvokeExpr expr = (value == null) ? null : (InvokeExpr) value;
 
-        return expr instanceof JSpecialInvokeExpr;
+        return value instanceof JSpecialInvokeExpr;
     }
 
     private static boolean isIdentity(Unit unit) {
@@ -396,7 +398,7 @@ public class SootUnit {
     }
 
     private static boolean isParameter(Unit unit) {
-        if (!isAssign(unit)) {
+        if (!isIdentity(unit)) {
             return false;
         }
 
@@ -406,7 +408,7 @@ public class SootUnit {
     }
 
     private static boolean isCaughtException(Unit unit) {
-        if (!isAssign(unit)) {
+        if (!isIdentity(unit)) {
             return false;
         }
 
@@ -416,6 +418,10 @@ public class SootUnit {
     }
 
     private static boolean isNewInstance(Unit unit) {
+        if (!isAssign(unit)) {
+            return false;
+        }
+
         Value value = getRightValue(unit, ASSIGN);
         String valueStr = convertToStr(value);
 
@@ -423,12 +429,20 @@ public class SootUnit {
     }
 
     private static boolean isNewArray(Unit unit) {
+        if (!isAssign(unit)) {
+            return false;
+        }
+
         Value value = getRightValue(unit, ASSIGN);
 
         return value instanceof JNewArrayExpr;
     }
 
     private static boolean isNewException(Unit unit) {
+        if (!isAssign(unit)) {
+            return false;
+        }
+
         Value value = getRightValue(unit, ASSIGN);
         String valueStr = convertToStr(value);
 
@@ -436,6 +450,10 @@ public class SootUnit {
     }
 
     private static boolean isAssignVariableConstant(Unit unit) {
+        if (!isAssign(unit)) {
+            return false;
+        }
+
         Value leftValue = getLeftValue(unit, ASSIGN);
         Value rightValue = getRightValue(unit, ASSIGN);
 
@@ -443,6 +461,10 @@ public class SootUnit {
     }
 
     private static boolean isAssignVariableVariable(Unit unit) {
+        if (!isAssign(unit)) {
+            return false;
+        }
+
         Value leftValue = getLeftValue(unit, ASSIGN);
         Value rightValue = getRightValue(unit, ASSIGN);
 
@@ -450,6 +472,10 @@ public class SootUnit {
     }
 
     private static boolean isAssignVariableArray(Unit unit) {
+        if (!isAssign(unit)) {
+            return false;
+        }
+
         Value leftValue = getLeftValue(unit, ASSIGN);
         Value rightValue = getRightValue(unit, ASSIGN);
 
@@ -457,6 +483,10 @@ public class SootUnit {
     }
 
     private static boolean isAssignVariableSignature(Unit unit) {
+        if (!isAssign(unit)) {
+            return false;
+        }
+
         Value leftValue = getLeftValue(unit, ASSIGN);
         Value rightValue = getRightValue(unit, ASSIGN);
 
@@ -464,6 +494,10 @@ public class SootUnit {
     }
 
     private static boolean isAssignVariableAdd(Unit unit) {
+        if (!isAssign(unit)) {
+            return false;
+        }
+
         Value leftValue = getLeftValue(unit, ASSIGN);
         Value rightValue = getRightValue(unit, ASSIGN);
 
@@ -471,6 +505,10 @@ public class SootUnit {
     }
 
     private static boolean isAssignSignatureConstant(Unit unit) {
+        if (!isAssign(unit)) {
+            return false;
+        }
+
         Value leftValue = getLeftValue(unit, ASSIGN);
         Value rightValue = getRightValue(unit, ASSIGN);
 
@@ -478,6 +516,10 @@ public class SootUnit {
     }
 
     private static boolean isAssignSignatureVariable(Unit unit) {
+        if (!isAssign(unit)) {
+            return false;
+        }
+
         Value leftValue = getLeftValue(unit, ASSIGN);
         Value rightValue = getRightValue(unit, ASSIGN);
 
@@ -485,6 +527,10 @@ public class SootUnit {
     }
 
     private static boolean isAssignArrayConstant(Unit unit) {
+        if (!isAssign(unit)) {
+            return false;
+        }
+
         Value leftValue = getLeftValue(unit, ASSIGN);
         Value rightValue = getRightValue(unit, ASSIGN);
 
@@ -492,6 +538,10 @@ public class SootUnit {
     }
 
     private static boolean isAssignArrayVariable(Unit unit) {
+        if (!isAssign(unit)) {
+            return false;
+        }
+
         Value leftValue = getLeftValue(unit, ASSIGN);
         Value rightValue = getRightValue(unit, ASSIGN);
 
@@ -499,18 +549,30 @@ public class SootUnit {
     }
 
     private static boolean isCast(Unit unit) {
+        if (!isAssign(unit)) {
+            return false;
+        }
+
         Value value = getRightValue(unit, CAST);
 
         return value instanceof JCastExpr;
     }
 
     private static boolean isLengthOf(Unit unit) {
+        if (!isAssign(unit)) {
+            return false;
+        }
+
         Value value = getRightValue(unit, LENGTH_OF);
 
         return value instanceof JLengthExpr;
     }
 
     private static boolean isInstanceOf(Unit unit) {
+        if (!isAssign(unit)) {
+            return false;
+        }
+
         Value value = getRightValue(unit, INSTANCE_OF);
 
         return value instanceof JInstanceOfExpr;
