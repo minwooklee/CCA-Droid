@@ -91,14 +91,7 @@ public class SlicingCriteriaGenerator {
             return slicingCriteria;
         }
 
-        SootMethod sootMethod = codeInspector.getSootMethod(callerName); // avoid built-in library
-        if (sootMethod == null) {
-            return slicingCriteria;
-        }
-
-        Body body = sootMethod.retrieveActiveBody();
-        UnitPatchingChain chain = body.getUnits();
-        ArrayList<Unit> wholeUnits = new ArrayList<>(chain);
+        ArrayList<Unit> wholeUnits = codeInspector.getWholeUnits(callerName);
         reverse(wholeUnits);
 
         int wholeUnitsSize = wholeUnits.size();

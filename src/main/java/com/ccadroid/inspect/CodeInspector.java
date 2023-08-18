@@ -5,6 +5,7 @@ import com.ccadroid.util.soot.SootUnit;
 import org.graphstream.graph.Node;
 import soot.*;
 import soot.jimple.*;
+import soot.jimple.internal.JAssignStmt;
 import soot.tagkit.ConstantValueTag;
 import soot.tagkit.Tag;
 import soot.util.Chain;
@@ -22,17 +23,17 @@ import static java.lang.Long.parseLong;
 
 public class CodeInspector {
     private final CallGraph callGraph;
-    private final HashMap<String, SootMethod> sootMethodMap;
     private final HashMap<String, Value> constantValueMap;
     private final HashMap<Unit, Unit> targetUnitMap;
     private final HashMap<String, HashMap<Integer, ArrayList<Unit>>> targetUnitsMap;
+    private final HashMap<String, ArrayList<Unit>> wholeUnitsMap;
 
     private CodeInspector() {
         callGraph = new CallGraph();
-        sootMethodMap = new HashMap<>();
         constantValueMap = new HashMap<>();
         targetUnitMap = new HashMap<>();
         targetUnitsMap = new HashMap<>();
+        wholeUnitsMap = new HashMap<>();
     }
 
     public static CodeInspector getInstance() {
@@ -62,20 +63,15 @@ public class CodeInspector {
 
                 try {
                     String callerName = m.toString();
-                    sootMethodMap.put(callerName, m);
+                    Node caller = callGraph.addNode(callerName, callerName, null);
 
                     HashMap<Integer, ArrayList<Unit>> map = new HashMap<>();
 
-                    Node caller = callGraph.addNode(callerName, callerName, null);
                     Body body = m.retrieveActiveBody();
                     UnitPatchingChain chain = body.getUnits();
                     ArrayList<Unit> units = new ArrayList<>(chain);
                     for (Unit u : units) {
                         int unitType = getUnitType(u);
-                        if (unitType == -1) {
-                            continue;
-                        }
-
                         switch (unitType) {
                             case VIRTUAL_INVOKE:
                             case STATIC_INVOKE:
@@ -91,22 +87,6 @@ public class CodeInspector {
                                 break;
                             }
 
-                            case ASSIGN_SIGNATURE_CONSTANT: {
-                                String signature = getSignature(u);
-                                String returnType = getReturnType(signature);
-                                if (constantValueMap.containsKey(signature) || returnType.equals("boolean")) {
-                                    continue;
-                                }
-
-                                Value oldValue = getRightValue(u, unitType);
-                                String valueStr = convertToStr(oldValue);
-                                valueStr = valueStr.replace("\"", "");
-
-                                Value newValue = convertToValue(returnType, valueStr);
-                                constantValueMap.put(signature, newValue);
-                                break;
-                            }
-
                             case ASSIGN_VARIABLE_SIGNATURE:
                             case ASSIGN_SIGNATURE_VARIABLE: {
                                 String signature = getSignature(u);
@@ -117,7 +97,16 @@ public class CodeInspector {
 
                                 Node callee = callGraph.addNode(signature, signature, null);
                                 if (unitType == ASSIGN_VARIABLE_SIGNATURE) {
-                                    callGraph.addEdge(caller, callee, READ);
+                                    Value rightValue = constantValueMap.get(signature);
+                                    if (rightValue == null) {
+                                        callGraph.addEdge(caller, callee, READ);
+                                    } else {
+                                        Value leftValue = getLeftValue(u, unitType);
+
+                                        int index = units.indexOf(u);
+                                        Unit newUnit = new JAssignStmt(leftValue, rightValue);
+                                        units.set(index, newUnit);
+                                    }
                                 } else {
                                     callGraph.addEdge(caller, callee, WRITE);
                                 }
@@ -149,6 +138,9 @@ public class CodeInspector {
                             targetUnitsMap.put(callerName, map);
                         }
                     }
+
+                    ArrayList<Unit> wholeUnits = new ArrayList<>(units);
+                    wholeUnitsMap.put(callerName, wholeUnits);
                 } catch (RuntimeException | StackOverflowError | OutOfMemoryError ignored) { // for Soot internal error
 
                 }
@@ -160,12 +152,8 @@ public class CodeInspector {
         return callGraph.getNode(signature);
     }
 
-    public SootMethod getSootMethod(String signature) {
-        return sootMethodMap.get(signature);
-    }
-
-    public Value getConstantValue(String signature) {
-        return constantValueMap.get(signature);
+    public ArrayList<ArrayList<String>> traverseCallers(String signature, boolean upper) {
+        return callGraph.getListOfIds(signature, upper);
     }
 
     public Unit getTargetUnit(Unit unit) {
@@ -176,8 +164,8 @@ public class CodeInspector {
         return targetUnitsMap.get(callerName);
     }
 
-    public ArrayList<ArrayList<String>> traverseCallers(String signature, boolean upper) {
-        return callGraph.getListOfIds(signature, upper);
+    public ArrayList<Unit> getWholeUnits(String signature) {
+        return wholeUnitsMap.get(signature);
     }
 
     private void parseStaticFinalValue(SootClass sootClass) {
