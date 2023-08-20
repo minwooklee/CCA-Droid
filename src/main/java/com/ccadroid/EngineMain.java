@@ -1,9 +1,12 @@
 package com.ccadroid;
 
+import com.ccadroid.common.model.SlicingCriterion;
 import com.ccadroid.inspect.ApkParser;
 import com.ccadroid.inspect.CodeInspector;
 import com.ccadroid.inspect.SlicingCriteriaGenerator;
-import com.ccadroid.model.SlicingCriterion;
+import com.ccadroid.slice.ProgramSlicer;
+import com.ccadroid.slice.SliceDatabase;
+import com.ccadroid.slice.SliceMerger;
 import com.ccadroid.util.soot.Soot;
 
 import java.io.File;
@@ -47,9 +50,15 @@ public class EngineMain {
         }
 
         SlicingCriteriaGenerator slicingCriteriaGenerator = SlicingCriteriaGenerator.getInstance();
+        ProgramSlicer slicer = ProgramSlicer.getInstance();
+        SliceDatabase database = SliceDatabase.getInstance();
+        database.initialize(packageName);
+        SliceMerger sliceMerger = SliceMerger.getInstance();
+
         ArrayList<SlicingCriterion> slicingCriteria = slicingCriteriaGenerator.createSlicingCriteria(ruleFileDir);
         for (SlicingCriterion sc : slicingCriteria) {
-
+            slicer.sliceStatements(sc);
+            sliceMerger.mergeSlices(sc);
         }
     }
 }

@@ -2,6 +2,7 @@ package com.ccadroid.util.soot;
 
 import com.ccadroid.inspect.ApkParser;
 import soot.Scene;
+import soot.SootClass;
 import soot.options.Options;
 
 import java.util.ArrayList;
@@ -44,5 +45,11 @@ public class Soot {
 
         Scene.v().loadBasicClasses();
         Scene.v().loadNecessaryClasses();
+    }
+
+    public static boolean isEnumClass(String className) {
+        SootClass sootClass = Scene.v().getSootClass(className);
+
+        return sootClass.isEnum();
     }
 }

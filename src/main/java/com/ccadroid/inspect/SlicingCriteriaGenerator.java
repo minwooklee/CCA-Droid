@@ -1,6 +1,6 @@
 package com.ccadroid.inspect;
 
-import com.ccadroid.model.SlicingCriterion;
+import com.ccadroid.common.model.SlicingCriterion;
 import org.graphstream.graph.Edge;
 import org.graphstream.graph.Node;
 import org.json.JSONArray;
@@ -14,22 +14,18 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static com.ccadroid.util.soot.SootUnit.*;
-import static java.lang.Integer.parseInt;
-import static java.util.Collections.reverse;
-import static java.util.stream.Collectors.toList;
 
 public class SlicingCriteriaGenerator {
     private final ApkParser apkParser;
     private final CodeInspector codeInspector;
-    private final HashMap<String, SlicingCriterion> slicingCriterionMap;
 
     public SlicingCriteriaGenerator() {
         apkParser = ApkParser.getInstance();
         codeInspector = CodeInspector.getInstance();
-        slicingCriterionMap = new HashMap<>();
     }
 
     public static SlicingCriteriaGenerator getInstance() {
@@ -47,15 +43,19 @@ public class SlicingCriteriaGenerator {
         ArrayList<SlicingCriterion> candidates = getSlicingCandidates(ruleFileDir);
         for (SlicingCriterion sc : candidates) {
             String targetStatement = sc.getTargetStatement();
+            if (!isCorrectSignature(targetStatement)) {
+                continue;
+            }
+
             Node callee = codeInspector.getNode(targetStatement);
-            if (!isCorrectSignature(targetStatement) || callee == null) {
+            if (callee == null) {
                 continue;
             }
 
             ArrayList<String> targetParamNums = sc.getTargetParamNums();
 
             Stream<Edge> stream = callee.edges();
-            List<Edge> edges = stream.collect(toList());
+            List<Edge> edges = stream.collect(Collectors.toList());
             for (Edge e : edges) {
                 Node caller = e.getSourceNode();
                 String callerName = caller.getId();
@@ -68,7 +68,7 @@ public class SlicingCriteriaGenerator {
                 setReachableCallers(packageName, appClassName, appComponents, listOfCallers);
                 listOfCallersMap.put(callerName, listOfCallers);
 
-                ArrayList<SlicingCriterion> criteria = createSlicingCriteria(caller, targetStatement, INVOKE, targetParamNums);
+                ArrayList<SlicingCriterion> criteria = createSlicingCriteria(callerName, targetStatement, INVOKE, targetParamNums);
                 slicingCriteria.addAll(criteria);
             }
         }
@@ -76,9 +76,8 @@ public class SlicingCriteriaGenerator {
         return slicingCriteria;
     }
 
-    public ArrayList<SlicingCriterion> createSlicingCriteria(Node caller, String targetStatement, int targetUnitType, ArrayList<String> targetParamNums) {
+    public ArrayList<SlicingCriterion> createSlicingCriteria(String callerName, String targetStatement, int targetUnitType, ArrayList<String> targetParamNums) {
         ArrayList<SlicingCriterion> slicingCriteria = new ArrayList<>();
-        String callerName = caller.getId();
 
         String returnType = null;
         if (targetUnitType == ASSIGN) {
@@ -87,15 +86,20 @@ public class SlicingCriteriaGenerator {
             returnType = getReturnType(callerName);
         }
 
-        if (returnType != null && (!returnType.equals("int") && !returnType.equals("java.lang.String") && !returnType.equals("byte") && !returnType.equals("bytes[]"))) {
+        if (returnType != null && (!returnType.equals("int") && !returnType.contains("char") && !returnType.equals("java.lang.String") && !returnType.contains("byte"))) {
             return slicingCriteria;
         }
 
         ArrayList<Unit> wholeUnits = codeInspector.getWholeUnits(callerName);
-        reverse(wholeUnits);
+        if (wholeUnits == null || wholeUnits.isEmpty()) {
+            return slicingCriteria;
+        }
 
-        int wholeUnitsSize = wholeUnits.size();
-        for (int i = 0; i < wholeUnitsSize; i++) {
+        wholeUnits = new ArrayList<>(wholeUnits);
+        Collections.reverse(wholeUnits);
+
+        int wholeUnitCount = wholeUnits.size();
+        for (int i = wholeUnitCount - 1; i > 0; i--) {
             Unit unit = wholeUnits.get(i);
             String unitStr = unit.toString();
             if (!(unitStr.contains(targetStatement))) {
@@ -153,7 +157,7 @@ public class SlicingCriteriaGenerator {
                             continue;
                         }
 
-                        int paramNum = parseInt(j);
+                        int paramNum = Integer.parseInt(j);
                         String type = paramTypes.get(paramNum);
                         if (!type.equals("int") && !type.equals("java.lang.String") && !type.equals("byte") && !type.equals("bytes[]")) {
                             continue;
@@ -169,32 +173,24 @@ public class SlicingCriteriaGenerator {
                 }
             }
 
-            if (targetVariableMap.isEmpty()) {
+            if (targetVariableMap.isEmpty() || isDuplicatedCriterion(targetStatement, targetVariableMap, slicingCriteria)) {
                 continue;
             }
 
             SlicingCriterion slicingCriterion = new SlicingCriterion();
-            slicingCriterion.setCaller(caller);
+            slicingCriterion.setCallerName(callerName);
             slicingCriterion.setTargetStatement(targetStatement);
             slicingCriterion.setTargetParamNums(targetParamNums);
             slicingCriterion.setTargetUnitIndex(i);
             slicingCriterion.setTargetVariableMap(new HashMap<>(targetVariableMap));
-            slicingCriterion.setWholeUnits(wholeUnits);
             if (slicingCriteria.contains(slicingCriterion)) {
                 continue;
             }
-
-            String hashCode = String.valueOf(slicingCriterion.hashCode());
-            slicingCriterionMap.put(hashCode, slicingCriterion);
 
             slicingCriteria.add(slicingCriterion);
         }
 
         return slicingCriteria;
-    }
-
-    public SlicingCriterion getSlicingCriterion(String hashCode) {
-        return slicingCriterionMap.get(hashCode);
     }
 
     private ArrayList<SlicingCriterion> getSlicingCandidates(File ruleFileDir) {
@@ -295,6 +291,18 @@ public class SlicingCriteriaGenerator {
         }
 
         listOfCallers.removeAll(targets);
+    }
+
+    private boolean isDuplicatedCriterion(String targetStatement, HashMap<String, ValueBox> targetVariableMap, ArrayList<SlicingCriterion> slicingCriteria) {
+        for (SlicingCriterion sc : slicingCriteria) {
+            String statement = sc.getTargetStatement();
+            HashMap<String, ValueBox> variableMap = sc.getTargetVariableMap();
+            if (targetStatement.equals(statement) && targetVariableMap.keySet().containsAll(variableMap.keySet())) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static class Holder {

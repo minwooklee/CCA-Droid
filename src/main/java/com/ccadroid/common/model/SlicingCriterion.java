@@ -1,26 +1,23 @@
-package com.ccadroid.model;
+package com.ccadroid.common.model;
 
-import org.graphstream.graph.Node;
-import soot.Unit;
 import soot.ValueBox;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 
 public class SlicingCriterion {
-    private Node caller;
+    private String callerName;
     private String targetStatement;
-    private ArrayList<String> targetParamNums;
     private int targetUnitIndex;
+    private ArrayList<String> targetParamNums;
     private HashMap<String, ValueBox> targetVariableMap;
-    private ArrayList<Unit> wholeUnits;
 
-    public Node getCaller() {
-        return caller;
+    public String getCallerName() {
+        return callerName;
     }
 
-    public void setCaller(Node caller) {
-        this.caller = caller;
+    public void setCallerName(String callerName) {
+        this.callerName = callerName;
     }
 
     public String getTargetStatement() {
@@ -31,20 +28,20 @@ public class SlicingCriterion {
         this.targetStatement = targetStatement;
     }
 
-    public ArrayList<String> getTargetParamNums() {
-        return targetParamNums;
-    }
-
-    public void setTargetParamNums(ArrayList<String> targetParamNums) {
-        this.targetParamNums = targetParamNums;
-    }
-
     public int getTargetUnitIndex() {
         return targetUnitIndex;
     }
 
     public void setTargetUnitIndex(int targetUnitIndex) {
         this.targetUnitIndex = targetUnitIndex;
+    }
+
+    public ArrayList<String> getTargetParamNums() {
+        return targetParamNums;
+    }
+
+    public void setTargetParamNums(ArrayList<String> targetParamNums) {
+        this.targetParamNums = targetParamNums;
     }
 
     public HashMap<String, ValueBox> getTargetVariableMap() {
@@ -55,22 +52,14 @@ public class SlicingCriterion {
         this.targetVariableMap = targetVariableMap;
     }
 
-    public ArrayList<Unit> getWholeUnits() {
-        return wholeUnits;
-    }
-
-    public void setWholeUnits(ArrayList<Unit> wholeUnits) {
-        this.wholeUnits = wholeUnits;
-    }
-
     @Override
     public int hashCode() {
-        return wholeUnits.hashCode() + targetStatement.hashCode() + ((targetVariableMap == null) ? 0 : targetVariableMap.hashCode()) + targetUnitIndex;
+        return targetStatement.hashCode() + targetUnitIndex + ((targetVariableMap == null) ? 0 : targetVariableMap.hashCode());
     }
 
     @Override
     public String toString() {
-        return "SlicingCriterion{caller=" + caller + ", targetStatement=" + targetStatement + ", targetVariableMap=" + targetVariableMap + "}";
+        return "SlicingCriterion{caller=" + callerName + ", targetStatement=" + targetStatement + ", targetVariableMap=" + targetVariableMap + "}";
     }
 
     @Override

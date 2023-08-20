@@ -16,10 +16,6 @@ import java.util.List;
 
 import static com.ccadroid.util.graph.BaseGraph.EdgeType.*;
 import static com.ccadroid.util.soot.SootUnit.*;
-import static java.lang.Double.parseDouble;
-import static java.lang.Float.parseFloat;
-import static java.lang.Integer.parseInt;
-import static java.lang.Long.parseLong;
 
 public class CodeInspector {
     private final CallGraph callGraph;
@@ -121,7 +117,7 @@ public class CodeInspector {
                             }
 
                             case SWITCH: {
-                                int index = units.indexOf(u);
+                                int index = units.size() - units.indexOf(u) - 1;
                                 List<Unit> list = SootUnit.getTargetUnits(u, unitType);
                                 ArrayList<Unit> targets = new ArrayList<>(list);
 
@@ -212,7 +208,7 @@ public class CodeInspector {
             case "boolean":
             case "short":
             case "int": {
-                value = IntConstant.v(parseInt(valueStr));
+                value = IntConstant.v(Integer.parseInt(valueStr));
                 break;
             }
 
@@ -222,7 +218,7 @@ public class CodeInspector {
                 } else if (valueStr.contains("Infinity")) {
                     value = (valueStr.contains("-")) ? DoubleConstant.v(Double.NEGATIVE_INFINITY) : DoubleConstant.v(Double.POSITIVE_INFINITY);
                 } else {
-                    value = DoubleConstant.v(parseDouble(valueStr));
+                    value = DoubleConstant.v(Double.parseDouble(valueStr));
                 }
 
                 break;
@@ -230,7 +226,7 @@ public class CodeInspector {
 
             case "long": {
                 valueStr = valueStr.replace("L", "");
-                value = LongConstant.v(parseLong(valueStr));
+                value = LongConstant.v(Long.parseLong(valueStr));
                 break;
             }
 
@@ -241,7 +237,7 @@ public class CodeInspector {
                 } else if (valueStr.contains("Infinity")) {
                     value = (valueStr.contains("-")) ? FloatConstant.v(Float.NEGATIVE_INFINITY) : FloatConstant.v(Float.POSITIVE_INFINITY);
                 } else {
-                    value = FloatConstant.v(parseFloat(valueStr));
+                    value = FloatConstant.v(Float.parseFloat(valueStr));
                 }
 
                 break;
