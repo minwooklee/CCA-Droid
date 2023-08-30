@@ -15,8 +15,8 @@ public class CallGraph extends BaseGraph {
         graph.setAutoCreate(false);
     }
 
-    public Node addNode(String hashCode, String label, String type) {
-        return super.addNode(hashCode, label, type);
+    public Node addNode(String hashCode, String label) {
+        return super.addNode(hashCode, label);
     }
 
     public void addEdge(Node node1, Node node2, EdgeType type) {

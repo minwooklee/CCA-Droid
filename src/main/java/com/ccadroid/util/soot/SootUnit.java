@@ -232,6 +232,11 @@ public class SootUnit {
         return paramValues;
     }
 
+    public static ArrayList<String> getParamValues(String unitStr) {
+        String str = unitStr.substring(unitStr.indexOf(")>") + 3, unitStr.length() - 1);
+        return convertToList(str);
+    }
+
     public static ArrayList<String> convertToStrings(List<ValueBox> valueBoxes) {
         ArrayList<String> strings = new ArrayList<>();
 
@@ -347,16 +352,32 @@ public class SootUnit {
         return matcher.group();
     }
 
-    public static ArrayList<ValueBox> getConditionValues(Unit unit, int unitType) {
+    public static String getParamNum(String unitStr, int unitType) {
+        if (unitType != PARAMETER) {
+            return null;
+        }
+
+        Matcher matcher = NUMBER_PATTERN.matcher(unitStr);
+        matcher.find();
+
+        return matcher.group();
+    }
+
+    public static Value getConditionValue(Unit unit, int unitType) {
         if (unitType != IF) {
-            return new ArrayList<>();
+            return null;
         }
 
         JIfStmt stmt = (JIfStmt) unit;
         ValueBox conditionBox = stmt.getConditionBox();
-        Value value = conditionBox.getValue();
 
-        return new ArrayList<>(value.getUseBoxes());
+        return conditionBox.getValue();
+    }
+
+    public static ArrayList<ValueBox> getConditionValues(Unit unit, int unitType) {
+        Value value = getConditionValue(unit, unitType);
+
+        return (value == null) ? new ArrayList<>() : new ArrayList<>(value.getUseBoxes());
     }
 
     public static Unit getTargetUnit(Unit unit, int unitType) {

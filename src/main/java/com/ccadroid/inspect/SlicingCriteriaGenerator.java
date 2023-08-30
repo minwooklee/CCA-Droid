@@ -1,9 +1,9 @@
 package com.ccadroid.inspect;
 
-import com.ccadroid.common.model.SlicingCriterion;
 import org.graphstream.graph.Edge;
 import org.graphstream.graph.Node;
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONTokener;
 import soot.*;
@@ -17,6 +17,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static com.ccadroid.check.RuleConstants.SLICING_SIGNATURES;
 import static com.ccadroid.util.soot.SootUnit.*;
 
 public class SlicingCriteriaGenerator {
@@ -42,12 +43,12 @@ public class SlicingCriteriaGenerator {
 
         ArrayList<SlicingCriterion> candidates = getSlicingCandidates(ruleFileDir);
         for (SlicingCriterion sc : candidates) {
-            String targetStatement = sc.getTargetStatement();
-            if (!isCorrectSignature(targetStatement)) {
+            String targetSignature = sc.getTargetSignature();
+            if (!isCorrectSignature(targetSignature)) {
                 continue;
             }
 
-            Node callee = codeInspector.getNode(targetStatement);
+            Node callee = codeInspector.getNode(targetSignature);
             if (callee == null) {
                 continue;
             }
@@ -68,7 +69,7 @@ public class SlicingCriteriaGenerator {
                 setReachableCallers(packageName, appClassName, appComponents, listOfCallers);
                 listOfCallersMap.put(callerName, listOfCallers);
 
-                ArrayList<SlicingCriterion> criteria = createSlicingCriteria(callerName, targetStatement, INVOKE, targetParamNums);
+                ArrayList<SlicingCriterion> criteria = createSlicingCriteria(callerName, targetSignature, INVOKE, targetParamNums);
                 slicingCriteria.addAll(criteria);
             }
         }
@@ -76,17 +77,17 @@ public class SlicingCriteriaGenerator {
         return slicingCriteria;
     }
 
-    public ArrayList<SlicingCriterion> createSlicingCriteria(String callerName, String targetStatement, int targetUnitType, ArrayList<String> targetParamNums) {
+    public ArrayList<SlicingCriterion> createSlicingCriteria(String callerName, String targetSignature, int targetUnitType, ArrayList<String> targetParamNums) {
         ArrayList<SlicingCriterion> slicingCriteria = new ArrayList<>();
 
         String returnType = null;
         if (targetUnitType == ASSIGN) {
-            returnType = getReturnType(targetStatement);
+            returnType = getReturnType(targetSignature);
         } else if (targetUnitType == RETURN_VALUE) {
             returnType = getReturnType(callerName);
         }
 
-        if (returnType != null && (!returnType.equals("int") && !returnType.contains("char") && !returnType.equals("java.lang.String") && !returnType.contains("byte"))) {
+        if (returnType != null && (!returnType.equals("int") && !returnType.contains("char") && !returnType.contains("String") && !returnType.contains("byte"))) {
             return slicingCriteria;
         }
 
@@ -102,7 +103,7 @@ public class SlicingCriteriaGenerator {
         for (int i = wholeUnitCount - 1; i > 0; i--) {
             Unit unit = wholeUnits.get(i);
             String unitStr = unit.toString();
-            if (!(unitStr.contains(targetStatement))) {
+            if (!(unitStr.contains(targetSignature))) {
                 continue;
             }
 
@@ -159,7 +160,7 @@ public class SlicingCriteriaGenerator {
 
                         int paramNum = Integer.parseInt(j);
                         String type = paramTypes.get(paramNum);
-                        if (!type.equals("int") && !type.equals("java.lang.String") && !type.equals("byte") && !type.equals("bytes[]")) {
+                        if (!type.equals("int") && !type.contains("String") && !type.contains("byte")) {
                             continue;
                         }
 
@@ -173,13 +174,13 @@ public class SlicingCriteriaGenerator {
                 }
             }
 
-            if (targetVariableMap.isEmpty() || isDuplicatedCriterion(targetStatement, targetVariableMap, slicingCriteria)) {
+            if (targetVariableMap.isEmpty() || isDuplicatedCriterion(targetSignature, targetVariableMap, slicingCriteria)) {
                 continue;
             }
 
             SlicingCriterion slicingCriterion = new SlicingCriterion();
             slicingCriterion.setCallerName(callerName);
-            slicingCriterion.setTargetStatement(targetStatement);
+            slicingCriterion.setTargetSignature(targetSignature);
             slicingCriterion.setTargetParamNums(targetParamNums);
             slicingCriterion.setTargetUnitIndex(i);
             slicingCriterion.setTargetVariableMap(new HashMap<>(targetVariableMap));
@@ -203,11 +204,15 @@ public class SlicingCriteriaGenerator {
 
         for (File f : ruleFiles) {
             try {
+                if (f.isDirectory()) {
+                    continue;
+                }
+
                 String path = f.getAbsolutePath();
                 InputStream inputStream = Files.newInputStream(Paths.get(path));
                 JSONTokener tokenizer = new JSONTokener(inputStream);
                 JSONObject root = new JSONObject(tokenizer);
-                JSONObject signatures = root.getJSONObject("signatures");
+                JSONObject signatures = root.getJSONObject(SLICING_SIGNATURES);
                 if (signatures == null) {
                     continue;
                 }
@@ -223,14 +228,14 @@ public class SlicingCriteriaGenerator {
                     }
 
                     SlicingCriterion slicingCriterion = new SlicingCriterion();
-                    slicingCriterion.setTargetStatement(signature);
+                    slicingCriterion.setTargetSignature(signature);
                     slicingCriterion.setTargetParamNums(paramNums);
                     candidates.add(slicingCriterion);
                 }
 
                 inputStream.close();
-            } catch (IOException e) {
-                e.printStackTrace();
+            } catch (IOException | JSONException ignored) {
+                System.out.println("[*] ERROR: Cannot import rule file: " + f.getName());
             }
         }
 
@@ -293,11 +298,11 @@ public class SlicingCriteriaGenerator {
         listOfCallers.removeAll(targets);
     }
 
-    private boolean isDuplicatedCriterion(String targetStatement, HashMap<String, ValueBox> targetVariableMap, ArrayList<SlicingCriterion> slicingCriteria) {
+    private boolean isDuplicatedCriterion(String targetSignature, HashMap<String, ValueBox> targetVariableMap, ArrayList<SlicingCriterion> slicingCriteria) {
         for (SlicingCriterion sc : slicingCriteria) {
-            String statement = sc.getTargetStatement();
+            String signature = sc.getTargetSignature();
             HashMap<String, ValueBox> variableMap = sc.getTargetVariableMap();
-            if (targetStatement.equals(statement) && targetVariableMap.keySet().containsAll(variableMap.keySet())) {
+            if (targetSignature.equals(signature) && targetVariableMap.keySet().containsAll(variableMap.keySet())) {
                 return true;
             }
         }

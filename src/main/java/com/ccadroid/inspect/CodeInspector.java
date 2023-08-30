@@ -20,14 +20,12 @@ import static com.ccadroid.util.soot.SootUnit.*;
 public class CodeInspector {
     private final CallGraph callGraph;
     private final HashMap<String, Value> constantValueMap;
-    private final HashMap<Unit, Unit> targetUnitMap;
     private final HashMap<String, HashMap<Integer, ArrayList<Unit>>> targetUnitsMap;
     private final HashMap<String, ArrayList<Unit>> wholeUnitsMap;
 
     private CodeInspector() {
         callGraph = new CallGraph();
         constantValueMap = new HashMap<>();
-        targetUnitMap = new HashMap<>();
         targetUnitsMap = new HashMap<>();
         wholeUnitsMap = new HashMap<>();
     }
@@ -59,7 +57,7 @@ public class CodeInspector {
 
                 try {
                     String callerName = m.toString();
-                    Node caller = callGraph.addNode(callerName, callerName, null);
+                    Node caller = callGraph.addNode(callerName, callerName);
 
                     HashMap<Integer, ArrayList<Unit>> map = new HashMap<>();
 
@@ -78,7 +76,7 @@ public class CodeInspector {
                             case ASSIGN_INTERFACE_INVOKE:
                             case ASSIGN_SPECIAL_INVOKE: {
                                 String calleeName = getSignature(u);
-                                Node callee = callGraph.addNode(calleeName, calleeName, null);
+                                Node callee = callGraph.addNode(calleeName, calleeName);
                                 callGraph.addEdge(caller, callee, DOWNWARD);
                                 break;
                             }
@@ -91,7 +89,7 @@ public class CodeInspector {
                                     break;
                                 }
 
-                                Node callee = callGraph.addNode(signature, signature, null);
+                                Node callee = callGraph.addNode(signature, signature);
                                 if (unitType == ASSIGN_VARIABLE_SIGNATURE) {
                                     Value rightValue = constantValueMap.get(signature);
                                     if (rightValue == null) {
@@ -107,12 +105,6 @@ public class CodeInspector {
                                     callGraph.addEdge(caller, callee, WRITE);
                                 }
 
-                                break;
-                            }
-
-                            case GOTO: {
-                                Unit targetUnit = SootUnit.getTargetUnit(u, unitType);
-                                targetUnitMap.put(targetUnit, u);
                                 break;
                             }
 
@@ -152,16 +144,26 @@ public class CodeInspector {
         return callGraph.getListOfIds(signature, upper);
     }
 
-    public Unit getTargetUnit(Unit unit) {
-        return targetUnitMap.get(unit);
-    }
-
     public HashMap<Integer, ArrayList<Unit>> getTargetUnits(String callerName) {
         return targetUnitsMap.get(callerName);
     }
 
     public ArrayList<Unit> getWholeUnits(String signature) {
         return wholeUnitsMap.get(signature);
+    }
+
+    public boolean isLoopStatement(Unit unit, int unitType, ArrayList<Unit> wholeUnits) {
+        Unit targetUnit = getTargetUnit(unit, unitType);
+
+        if (unitType == IF) {
+            int targetUnitIndex = wholeUnits.indexOf(targetUnit);
+            Unit tempUnit = wholeUnits.get(targetUnitIndex + 1);
+            int tempUnitType = getUnitType(tempUnit);
+            return isLoopStatement(tempUnit, tempUnitType, wholeUnits);
+        } else {
+            int tempUnitType = getUnitType(targetUnit);
+            return (tempUnitType == IF);
+        }
     }
 
     private void parseStaticFinalValue(SootClass sootClass) {

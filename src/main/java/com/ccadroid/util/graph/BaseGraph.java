@@ -16,14 +16,13 @@ public abstract class BaseGraph {
         System.setProperty("org.graphstream.ui", "javafx");
     }
 
-    protected Node addNode(String id, String label, String type) {
+    protected Node addNode(String id, String label) {
         Node node = graph.getNode(id);
         if (node == null) {
             node = graph.addNode(id);
         }
 
         node.setAttribute("label", label);
-        node.setAttribute("ui.class", type);
 
         return node;
     }
@@ -37,7 +36,7 @@ public abstract class BaseGraph {
 
         if (type == EdgeType.UPWARD) {
             edge = graph.addEdge(id, node2, node1, true);
-        } else if (type == EdgeType.DOWNWARD){
+        } else if (type == EdgeType.DOWNWARD) {
             edge = graph.addEdge(id, node1, node2, true);
         } else {
             edge = graph.addEdge(id, node1, node2, false);

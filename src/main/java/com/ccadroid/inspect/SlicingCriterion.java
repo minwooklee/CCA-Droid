@@ -1,4 +1,4 @@
-package com.ccadroid.common.model;
+package com.ccadroid.inspect;
 
 import soot.ValueBox;
 
@@ -7,7 +7,7 @@ import java.util.HashMap;
 
 public class SlicingCriterion {
     private String callerName;
-    private String targetStatement;
+    private String targetSignature;
     private int targetUnitIndex;
     private ArrayList<String> targetParamNums;
     private HashMap<String, ValueBox> targetVariableMap;
@@ -20,12 +20,12 @@ public class SlicingCriterion {
         this.callerName = callerName;
     }
 
-    public String getTargetStatement() {
-        return targetStatement;
+    public String getTargetSignature() {
+        return targetSignature;
     }
 
-    public void setTargetStatement(String targetStatement) {
-        this.targetStatement = targetStatement;
+    public void setTargetSignature(String targetSignature) {
+        this.targetSignature = targetSignature;
     }
 
     public int getTargetUnitIndex() {
@@ -54,12 +54,12 @@ public class SlicingCriterion {
 
     @Override
     public int hashCode() {
-        return targetStatement.hashCode() + targetUnitIndex + ((targetVariableMap == null) ? 0 : targetVariableMap.hashCode());
+        return callerName.hashCode() + targetSignature.hashCode() + targetUnitIndex;
     }
 
     @Override
     public String toString() {
-        return "SlicingCriterion{caller=" + callerName + ", targetStatement=" + targetStatement + ", targetVariableMap=" + targetVariableMap + "}";
+        return "SlicingCriterion{caller=" + callerName + ", targetSignature=" + targetSignature + ", targetVariableMap=" + targetVariableMap + "}";
     }
 
     @Override
