@@ -9,6 +9,7 @@ import org.graphstream.graph.Node;
 import java.util.ArrayList;
 
 import static com.ccadroid.slice.SliceConstants.*;
+import static com.ccadroid.util.graph.CallGraph.LEVEL;
 import static com.ccadroid.util.soot.SootUnit.PARAMETER;
 
 public class SliceMerger {
@@ -27,7 +28,7 @@ public class SliceMerger {
     public Node addNode(String hashCode, String label, String topId, int level) {
         Node node = callGraph.addNode(hashCode, label);
         node.setAttribute(GROUP_ID, topId);
-        node.setAttribute("level", level);
+        node.setAttribute(LEVEL, level);
 
         return node;
     }

@@ -17,6 +17,7 @@ import java.util.stream.Stream;
 
 import static com.ccadroid.slice.SliceConstants.*;
 import static com.ccadroid.util.graph.BaseGraph.EdgeType.*;
+import static com.ccadroid.util.graph.CallGraph.LEVEL;
 import static com.ccadroid.util.soot.Soot.isEnumClass;
 import static com.ccadroid.util.soot.SootUnit.*;
 
@@ -370,7 +371,7 @@ public class ProgramSlicer {
     }
 
     private void handleAssignInvokeUnit(Node parent, String topId, String calleeName) {
-        int level = (int) parent.getAttribute("level");
+        int level = (int) parent.getAttribute(LEVEL);
         if (level == LOWER_LEVEL) {
             return;
         } else {
@@ -389,7 +390,7 @@ public class ProgramSlicer {
 
     private void handleAssignVariableSignatureUnit(Node sibling, String topId, String oldCallerName, String targetSignature) {
         Node oldCaller = codeInspector.getNode(oldCallerName);
-        int level = (int) sibling.getAttribute("level");
+        int level = (int) sibling.getAttribute(LEVEL);
         String newSiblingId = String.valueOf(targetSignature.hashCode());
         Node newSibling = sliceMerger.getNode(newSiblingId);
         if (newSibling == null) {
@@ -434,7 +435,7 @@ public class ProgramSlicer {
             return;
         }
 
-        int level = (int) child.getAttribute("level");
+        int level = (int) child.getAttribute(LEVEL);
         if (level == UPPER_LEVEL) {
             return;
         } else {

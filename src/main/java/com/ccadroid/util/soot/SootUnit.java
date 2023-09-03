@@ -53,7 +53,6 @@ public class SootUnit {
     public static final int RETURN = 0x02000000;
     public static final int RETURN_VALUE = RETURN | 0x00000001;
     public static final int RETURN_VOID = RETURN | 0x00000002;
-
     private static final Pattern NUMBER_PATTERN = Pattern.compile("\\d+");
     private static final Pattern VARIABLE_PATTERN = Pattern.compile("\\$*[a-z]\\d{1,5}");
 
@@ -340,16 +339,9 @@ public class SootUnit {
     }
 
     public static String getParamNum(Unit unit, int unitType) {
-        if (unitType != PARAMETER) {
-            return null;
-        }
+        String unitStr = unit.toString();
 
-        Value value = getRightValue(unit, PARAMETER);
-        String valueStr = convertToStr(value);
-        Matcher matcher = NUMBER_PATTERN.matcher(valueStr);
-        matcher.find();
-
-        return matcher.group();
+        return getParamNum(unitStr, unitType);
     }
 
     public static String getParamNum(String unitStr, int unitType) {

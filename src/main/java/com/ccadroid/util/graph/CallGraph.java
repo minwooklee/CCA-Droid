@@ -7,6 +7,7 @@ import org.graphstream.graph.implementations.SingleGraph;
 import java.util.ArrayList;
 
 public class CallGraph extends BaseGraph {
+    public static final String LEVEL = "level";
 
     public CallGraph() {
         int hashCode = this.hashCode();
