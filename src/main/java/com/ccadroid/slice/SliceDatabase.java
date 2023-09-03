@@ -1,5 +1,6 @@
 package com.ccadroid.slice;
 
+import com.ccadroid.util.Configuration;
 import com.mongodb.client.*;
 import org.bson.Document;
 
@@ -15,8 +16,10 @@ public class SliceDatabase {
     }
 
     public void initialize(String packageName) {
-        MongoClient client = MongoClients.create("mongodb://localhost:27017");
-        MongoDatabase database = client.getDatabase("CCA-Droid");
+        String uri = Configuration.getProperty("mongo.Uri");
+        String databaseName = Configuration.getProperty("mongo.databaseName");
+        MongoClient client = MongoClients.create(uri);
+        MongoDatabase database = client.getDatabase(databaseName);
         collection = database.getCollection(packageName);
     }
 

@@ -8,6 +8,7 @@ import com.ccadroid.inspect.SlicingCriterion;
 import com.ccadroid.slice.ProgramSlicer;
 import com.ccadroid.slice.SliceDatabase;
 import com.ccadroid.slice.SliceMerger;
+import com.ccadroid.util.Configuration;
 import com.ccadroid.util.soot.Soot;
 
 import java.io.File;
@@ -20,6 +21,8 @@ public class EngineMain {
             System.out.println("[*] ERROR : No file path to be analyzed was entered!");
             System.exit(1);
         }
+
+        Configuration.loadConfig();
 
         String apkPath = args[0];
         System.out.println("[*] Analyzing APK : " + apkPath);

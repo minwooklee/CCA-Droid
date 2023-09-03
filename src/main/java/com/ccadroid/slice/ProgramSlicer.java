@@ -3,6 +3,7 @@ package com.ccadroid.slice;
 import com.ccadroid.inspect.CodeInspector;
 import com.ccadroid.inspect.SlicingCriteriaGenerator;
 import com.ccadroid.inspect.SlicingCriterion;
+import com.ccadroid.util.Configuration;
 import org.bson.Document;
 import org.graphstream.graph.Edge;
 import org.graphstream.graph.Node;
@@ -20,8 +21,8 @@ import static com.ccadroid.util.soot.Soot.isEnumClass;
 import static com.ccadroid.util.soot.SootUnit.*;
 
 public class ProgramSlicer {
-    private static final int UPPER_LEVEL = 5;
-    private static final int LOWER_LEVEL = -5;
+    private static final int UPPER_LEVEL = Integer.parseInt(Configuration.getProperty("slice.upperLevel"));
+    private static final int LOWER_LEVEL = Integer.parseInt(Configuration.getProperty("slice.lowerLevel"));
     private final CodeInspector codeInspector;
     private final SlicingCriteriaGenerator slicingCriteriaGenerator;
     private final SliceDatabase sliceDatabase;
