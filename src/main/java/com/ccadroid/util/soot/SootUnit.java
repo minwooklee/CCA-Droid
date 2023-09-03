@@ -181,30 +181,30 @@ public class SootUnit {
         return convertToList(str);
     }
 
-    public static ValueBox getLocalValueBox(Unit unit, int unitType) {
+    public static Value getLocalValue(Unit unit, int unitType) {
         if ((unitType & VIRTUAL_INVOKE) != VIRTUAL_INVOKE) {
             return null;
         }
 
-        ValueBox valueBox;
+        Value value;
         if ((unitType & ASSIGN) == ASSIGN) {
-            Value value = getRightValue(unit, unitType);
-            if (value == null) {
+            Value rightValue = getRightValue(unit, unitType);
+            if (rightValue == null) {
                 return null;
             }
 
-            InstanceInvokeExpr expr = (InstanceInvokeExpr) value;
-            valueBox = expr.getBaseBox();
+            InstanceInvokeExpr expr = (InstanceInvokeExpr) rightValue;
+            value = expr.getBase();
         } else {
             InvokeStmt stmt = (InvokeStmt) unit;
             InstanceInvokeExpr expr = (InstanceInvokeExpr) stmt.getInvokeExpr();
-            valueBox = expr.getBaseBox();
+            value = expr.getBase();
         }
 
-        return valueBox;
+        return value;
     }
 
-    public static ArrayList<ValueBox> getParamValues(Unit unit, int unitType) {
+    public static ArrayList<Value> getParamValues(Unit unit, int unitType) {
         if ((unitType & INVOKE) != INVOKE) {
             return new ArrayList<>();
         }
@@ -222,10 +222,10 @@ public class SootUnit {
             return new ArrayList<>();
         }
 
-        ArrayList<ValueBox> paramValues = new ArrayList<>();
+        ArrayList<Value> paramValues = new ArrayList<>();
         for (int i = 0; i < expr.getArgCount(); i++) {
-            ValueBox argBox = expr.getArgBox(i);
-            paramValues.add(argBox);
+            Value value = expr.getArg(i);
+            paramValues.add(value);
         }
 
         return paramValues;
@@ -233,95 +233,67 @@ public class SootUnit {
 
     public static ArrayList<String> getParamValues(String unitStr) {
         String str = unitStr.substring(unitStr.indexOf(")>") + 3, unitStr.length() - 1);
+
         return convertToList(str);
     }
 
-    public static ArrayList<String> convertToStrings(List<ValueBox> valueBoxes) {
-        ArrayList<String> strings = new ArrayList<>();
-
-        for (ValueBox vb : valueBoxes) {
-            String valueStr = getValueStr(vb);
-            strings.add(valueStr);
-        }
-
-        return strings;
-    }
-
-    public static ValueBox getLeftValueBox(Unit unit, int unitType) {
+    public static Value getLeftValue(Unit unit, int unitType) {
         if ((unitType & ASSIGN) != ASSIGN) {
             return null;
         }
 
-        ValueBox valueBox;
+        Value value;
         if ((unitType & IDENTITY) == IDENTITY) {
             IdentityStmt stmt = (JIdentityStmt) unit;
-            valueBox = stmt.getLeftOpBox();
+            value = stmt.getLeftOp();
         } else {
             JAssignStmt stmt = (JAssignStmt) unit;
-            valueBox = stmt.getLeftOpBox();
+            value = stmt.getLeftOp();
         }
 
-        return valueBox;
-    }
-
-    public static Value getLeftValue(Unit unit, int unitType) {
-        ValueBox valueBox = getLeftValueBox(unit, unitType);
-
-        return (valueBox == null) ? null : valueBox.getValue();
-    }
-
-    public static ValueBox getRightValueBox(Unit unit, int unitType) {
-        if ((unitType & ASSIGN) != ASSIGN) {
-            return null;
-        }
-
-        ValueBox valueBox;
-        if ((unitType & IDENTITY) == IDENTITY) {
-            JIdentityStmt stmt = (JIdentityStmt) unit;
-            valueBox = stmt.getRightOpBox();
-        } else if (unitType == RETURN_VALUE) {
-            JReturnStmt stmt = (JReturnStmt) unit;
-            valueBox = stmt.getOpBox();
-        } else {
-            JAssignStmt stmt = (JAssignStmt) unit;
-            valueBox = stmt.getRightOpBox();
-        }
-
-        return valueBox;
+        return value;
     }
 
     public static Value getRightValue(Unit unit, int unitType) {
-        ValueBox valueBox = getRightValueBox(unit, unitType);
+        if ((unitType & ASSIGN) != ASSIGN) {
+            return null;
+        }
 
-        return (valueBox == null) ? null : valueBox.getValue();
+        Value value;
+        if ((unitType & IDENTITY) == IDENTITY) {
+            JIdentityStmt stmt = (JIdentityStmt) unit;
+            value = stmt.getRightOp();
+        } else if (unitType == RETURN_VALUE) {
+            JReturnStmt stmt = (JReturnStmt) unit;
+            value = stmt.getOp();
+        } else {
+            JAssignStmt stmt = (JAssignStmt) unit;
+            value = stmt.getRightOp();
+        }
+
+        return value;
     }
 
-    public static ValueBox getRightInternalValue(Unit unit, int unitType) {
+    public static Value getRightInternalValue(Unit unit, int unitType) {
         if (unitType != CAST && unitType != LENGTH_OF) {
             return null;
         }
 
-        Value value = getRightValue(unit, unitType);
-        if (value == null) {
+        Value rightValue = getRightValue(unit, unitType);
+        if (rightValue == null) {
             return null;
         }
 
-        ValueBox valueBox;
+        Value value;
         if (unitType == CAST) {
-            JCastExpr expr = (JCastExpr) value;
-            valueBox = expr.getOpBox();
+            JCastExpr expr = (JCastExpr) rightValue;
+            value = expr.getOp();
         } else {
-            JLengthExpr expr = (JLengthExpr) value;
-            valueBox = expr.getOpBox();
+            JLengthExpr expr = (JLengthExpr) rightValue;
+            value = expr.getOp();
         }
 
-        return valueBox;
-    }
-
-    public static String getValueStr(ValueBox valueBox) {
-        Value value = (valueBox == null) ? null : valueBox.getValue();
-
-        return convertToStr(value);
+        return value;
     }
 
     public static String convertToStr(Value value) {
@@ -338,12 +310,6 @@ public class SootUnit {
         return matcher.matches();
     }
 
-    public static String getParamNum(Unit unit, int unitType) {
-        String unitStr = unit.toString();
-
-        return getParamNum(unitStr, unitType);
-    }
-
     public static String getParamNum(String unitStr, int unitType) {
         if (unitType != PARAMETER) {
             return null;
@@ -355,21 +321,21 @@ public class SootUnit {
         return matcher.group();
     }
 
-    public static Value getConditionValue(Unit unit, int unitType) {
+    public static ArrayList<Value> getConditionValues(Unit unit, int unitType) {
         if (unitType != IF) {
-            return null;
+            return new ArrayList<>();
         }
 
+        ArrayList<Value> values = new ArrayList<>();
         JIfStmt stmt = (JIfStmt) unit;
-        ValueBox conditionBox = stmt.getConditionBox();
+        Value value = stmt.getCondition();
+        List<ValueBox> valueBoxes = value.getUseBoxes();
+        for (ValueBox vb : valueBoxes) {
+            Value v = vb.getValue();
+            values.add(v);
+        }
 
-        return conditionBox.getValue();
-    }
-
-    public static ArrayList<ValueBox> getConditionValues(Unit unit, int unitType) {
-        Value value = getConditionValue(unit, unitType);
-
-        return (value == null) ? new ArrayList<>() : new ArrayList<>(value.getUseBoxes());
+        return values;
     }
 
     public static Unit getTargetUnit(Unit unit, int unitType) {
@@ -390,14 +356,14 @@ public class SootUnit {
         return targetUnit;
     }
 
-    public static ValueBox getSwitchValueBox(Unit unit, int unitType) {
+    public static Value getSwitchValue(Unit unit, int unitType) {
         if (unitType != SWITCH) {
             return null;
         }
 
         SwitchStmt stmt = (JLookupSwitchStmt) unit;
 
-        return stmt.getKeyBox();
+        return stmt.getKey();
     }
 
     public static ArrayList<Unit> getTargetUnits(Unit unit, int unitType) {

@@ -48,8 +48,12 @@ public class Soot {
     }
 
     public static boolean isEnumClass(String className) {
-        SootClass sootClass = Scene.v().getSootClass(className);
+        SootClass sootClass = getSootClass(className);
 
         return sootClass.isEnum();
+    }
+
+    public static SootClass getSootClass(String className) {
+        return Scene.v().getSootClass(className);
     }
 }

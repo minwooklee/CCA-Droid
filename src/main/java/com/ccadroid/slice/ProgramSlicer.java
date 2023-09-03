@@ -30,7 +30,7 @@ public class ProgramSlicer {
     private final SliceMerger sliceMerger;
     private final Deque<SlicingCriterion> deque;
     private final HashSet<SlicingCriterion> tempSlicingCriteria;
-    private HashMap<String, ValueBox> newTargetVariableMap;
+    private HashSet<Value> newTargetVariables;
 
     public ProgramSlicer() {
         codeInspector = CodeInspector.getInstance();
@@ -69,12 +69,17 @@ public class ProgramSlicer {
         String callerName = slicingCriterion.getCallerName();
         String targetSignature = slicingCriterion.getTargetSignature();
         int startUnitIndex = slicingCriterion.getTargetUnitIndex();
-        HashMap<String, ValueBox> oldTargetVariableMap = slicingCriterion.getTargetVariableMap();
-        ArrayList<String> oldTargetVariables = new ArrayList<>(oldTargetVariableMap.keySet());
+        HashSet<Value> oldTargetVariables = slicingCriterion.getTargetVariables();
+        ArrayList<String> targetVariables = new ArrayList<>();
+        for (Value v : oldTargetVariables) {
+            String valueStr = convertToStr(v);
+            targetVariables.add(valueStr);
+        }
 
-        ArrayList<Unit> wholeUnits = codeInspector.getWholeUnits(callerName);
-        wholeUnits = new ArrayList<>(wholeUnits);
+        ArrayList<Unit> tempWholeUnits = codeInspector.getWholeUnits(callerName);
+        ArrayList<Unit> wholeUnits = new ArrayList<>(tempWholeUnits);
         Collections.reverse(wholeUnits);
+
         int wholeUnitCount = wholeUnits.size();
         Unit startUnit = wholeUnits.get(startUnitIndex);
         int startUnitType = getUnitType(startUnit);
@@ -82,7 +87,7 @@ public class ProgramSlicer {
         HashMap<Integer, ArrayList<Unit>> switchTargetUnitMap = codeInspector.getTargetUnits(callerName);
         Set<Map.Entry<Integer, ArrayList<Unit>>> switchTargetUnitSet = (switchTargetUnitMap == null) ? null : switchTargetUnitMap.entrySet();
 
-        newTargetVariableMap = new HashMap<>(oldTargetVariableMap);
+        newTargetVariables = new HashSet<>(oldTargetVariables);
         ArrayList<String> newParamNums = new ArrayList<>();
 
         ArrayList<Unit> units = new ArrayList<>();
@@ -118,8 +123,8 @@ public class ProgramSlicer {
                     continue;
                 }
 
-                ArrayList<ValueBox> conditionValues = getConditionValues(unit, unitType);
-                addTargetVariables(conditionValues, newTargetVariableMap);
+                ArrayList<Value> conditionValues = getConditionValues(unit, unitType);
+                addTargetVariables(conditionValues, newTargetVariables);
 
                 units.add(unit);
                 addLine(unit, unitType, callerName, lineNum, slice);
@@ -133,10 +138,8 @@ public class ProgramSlicer {
                 addLine(unit, unitType, callerName, lineNum, slice);
                 continue;
             } else if (unitType == SWITCH) {
-                ValueBox valueBox = getSwitchValueBox(unit, unitType);
-                if (valueBox != null) {
-                    addTargetVariable(valueBox, newTargetVariableMap);
-                }
+                Value value = getSwitchValue(unit, unitType);
+                addTargetVariable(value, newTargetVariables);
 
                 units.add(unit);
                 addLine(unit, unitType, callerName, lineNum, slice);
@@ -144,9 +147,12 @@ public class ProgramSlicer {
             }
 
             List<ValueBox> useAndDefBoxes = unit.getUseAndDefBoxes();
-            List<String> valueStrings = convertToStrings(useAndDefBoxes);
-            HashSet<String> retainVariables = new HashSet<>(valueStrings);
-            retainVariables.retainAll(newTargetVariableMap.keySet());
+            HashSet<Value> retainVariables = new HashSet<>();
+            for (ValueBox vb : useAndDefBoxes) {
+                Value value = vb.getValue();
+                retainVariables.add(value);
+            }
+            retainVariables.retainAll(newTargetVariables);
             if (retainVariables.isEmpty()) {
                 int switchUnitIndex = (switchTargetUnitSet == null) ? -1 : getSwitchUnitIndex(unit, switchTargetUnitSet);
                 if (switchUnitIndex != -1) {
@@ -164,36 +170,35 @@ public class ProgramSlicer {
                     String signature = getSignature(unitStr);
                     String className = getClassName(signature);
                     String methodName = getMethodName(signature);
-                    ArrayList<ValueBox> paramValues = getParamValues(unit, unitType);
+                    ArrayList<Value> paramValues = getParamValues(unit, unitType);
 
                     if (className.equals("java.lang.System") && methodName.equals("arraycopy")) {
-                        ValueBox oldValueBox = paramValues.get(2);
-                        String oldValueStr = getValueStr(oldValueBox);
-                        if (!retainVariables.contains(oldValueStr)) {
+                        Value oldValue = paramValues.get(2);
+                        if (!retainVariables.contains(oldValue)) {
                             continue;
                         }
 
-                        newTargetVariableMap.remove(oldValueStr);
-                        ValueBox newValueBox = paramValues.get(0);
-                        addTargetVariable(newValueBox, newTargetVariableMap);
+                        newTargetVariables.remove(oldValue);
+                        Value newValue = paramValues.get(0);
+                        addTargetVariable(newValue, newTargetVariables);
                     } else if (className.equals("java.util.Map") && methodName.equals("put")) {
-                        ValueBox oldValueBox = paramValues.get(0);
-                        if (!newTargetVariableMap.containsValue(oldValueBox)) {
+                        Value oldValue = paramValues.get(0);
+                        if (!newTargetVariables.contains(oldValue)) {
                             continue;
                         }
 
-                        ValueBox newValueBox = paramValues.get(1);
-                        addTargetVariable(newValueBox, newTargetVariableMap);
+                        Value newValue = paramValues.get(1);
+                        addTargetVariable(newValue, newTargetVariables);
                     } else if (className.equals("android.util.Log") || className.equals("kotlin.jvm.internal.Intrinsics")) {
                         continue;
                     } else {
-                        ValueBox localValueBox = getLocalValueBox(unit, unitType);
-                        if (localValueBox != null) {
-                            addTargetVariable(localValueBox, newTargetVariableMap);
+                        Value localValue = getLocalValue(unit, unitType);
+                        if (localValue != null) {
+                            addTargetVariable(localValue, newTargetVariables);
                         }
 
                         ArrayList<String> paramTypes = getParamTypes(signature);
-                        addTargetVariables(paramTypes, paramValues, newTargetVariableMap);
+                        addTargetVariables(paramTypes, paramValues, newTargetVariables);
                     }
 
                     break;
@@ -205,14 +210,13 @@ public class ProgramSlicer {
                 case ASSIGN_SPECIAL_INVOKE: {
                     String signature = getSignature(unitStr);
                     ArrayList<String> paramTypes = getParamTypes(signature);
-                    ArrayList<ValueBox> paramValues = getParamValues(unit, unitType);
+                    ArrayList<Value> paramValues = getParamValues(unit, unitType);
 
-
-                    ValueBox localValueBox = getLocalValueBox(unit, unitType);
-                    if (localValueBox == null) {
-                        addTargetVariables(paramTypes, paramValues, newTargetVariableMap);
+                    Value localValue = getLocalValue(unit, unitType);
+                    if (localValue == null) {
+                        addTargetVariables(paramTypes, paramValues, newTargetVariables);
                     } else {
-                        addTargetVariable(localValueBox, newTargetVariableMap);
+                        addTargetVariable(localValue, newTargetVariables);
                     }
 
                     handleAssignInvokeUnit(node, topId, signature);
@@ -220,7 +224,7 @@ public class ProgramSlicer {
                 }
 
                 case PARAMETER: {
-                    String paramNum = getParamNum(unit, unitType);
+                    String paramNum = getParamNum(unitStr, unitType);
                     newParamNums.add(0, paramNum);
                     break;
                 }
@@ -228,9 +232,8 @@ public class ProgramSlicer {
                 case NEW_INSTANCE:
                 case NEW_ARRAY:
                 case ASSIGN_VARIABLE_CONSTANT: {
-                    Value leftValue = getLeftValue(unit, unitType);
-                    String leftValueStr = convertToStr(leftValue);
-                    if (!retainVariables.contains(leftValueStr)) {
+                    Value Value = getLeftValue(unit, unitType);
+                    if (!retainVariables.contains(Value)) {
                         continue;
                     }
 
@@ -239,28 +242,23 @@ public class ProgramSlicer {
 
                 case ASSIGN_VARIABLE_VARIABLE: {
                     Value leftValue = getLeftValue(unit, unitType);
-                    String leftValueStr = convertToStr(leftValue);
-                    if (!retainVariables.contains(leftValueStr)) {
+                    if (!retainVariables.contains(leftValue)) {
                         continue;
                     }
 
-                    newTargetVariableMap.remove(leftValueStr);
-
-                    ValueBox rightValueBox = getRightValueBox(unit, unitType);
-                    String rightValueStr = getValueStr(rightValueBox);
-                    newTargetVariableMap.put(rightValueStr, rightValueBox);
+                    newTargetVariables.remove(leftValue);
+                    Value rightValue = getRightValue(unit, unitType);
+                    newTargetVariables.add(rightValue);
                     break;
                 }
 
                 case ASSIGN_VARIABLE_SIGNATURE: {
                     if (startUnitType == ASSIGN_SIGNATURE_VARIABLE) {
                         Value leftValue = getLeftValue(unit, unitType);
-                        String leftValueStr = convertToStr(leftValue);
-                        newTargetVariableMap.remove(leftValueStr);
+                        newTargetVariables.remove(leftValue);
 
-                        ValueBox rightValueBox = getRightValueBox(unit, unitType);
-                        String rightValueStr = getValueStr(rightValueBox);
-                        newTargetVariableMap.put(rightValueStr, rightValueBox);
+                        Value rightValue = getRightValue(unit, unitType);
+                        newTargetVariables.add(rightValue);
                     }
 
                     String signature = getSignature(unitStr);
@@ -272,9 +270,8 @@ public class ProgramSlicer {
                     Unit targetUnit = wholeUnits.get(i - 1);
                     int targetUnitType = getUnitType(targetUnit);
                     if (targetUnitType == GOTO) {
-                        ValueBox valueBox = getLeftValueBox(unit, unitType);
-                        String valueStr = getValueStr(valueBox);
-                        newTargetVariableMap.remove(valueStr);
+                        Value value = getLeftValue(unit, unitType);
+                        newTargetVariables.remove(value);
                         continue;
                     }
 
@@ -284,24 +281,19 @@ public class ProgramSlicer {
                 case CAST:
                 case LENGTH_OF: {
                     Value leftValue = getLeftValue(unit, unitType);
-                    String leftValueStr = convertToStr(leftValue);
-                    if (!retainVariables.contains(leftValueStr)) {
+                    if (!retainVariables.contains(leftValue)) {
                         continue;
                     }
 
-                    newTargetVariableMap.remove(leftValueStr);
-
-                    ValueBox rightValueBox = getRightInternalValue(unit, unitType);
-                    String rightValueStr = getValueStr(rightValueBox);
-                    newTargetVariableMap.put(rightValueStr, rightValueBox);
+                    newTargetVariables.remove(leftValue);
+                    Value rightValue = getRightInternalValue(unit, unitType);
+                    newTargetVariables.add(rightValue);
                     break;
                 }
 
                 case RETURN_VALUE: {
-                    ValueBox rightValueBox = getRightValueBox(unit, unitType);
-                    String rightValueStr = getValueStr(rightValueBox);
-
-                    if (retainVariables.contains(rightValueStr)) {
+                    Value value = getRightValue(unit, unitType);
+                    if (retainVariables.contains(value)) {
                         continue; // ignore return statement
                     } else {
                         break;
@@ -322,7 +314,7 @@ public class ProgramSlicer {
         deque.addAll(tempSlicingCriteria);
         tempSlicingCriteria.clear();
 
-        sliceDatabase.insert(nodeId, topId, callerName, targetSignature, startUnitIndex, oldTargetVariables, slice);
+        sliceDatabase.insert(nodeId, topId, callerName, targetSignature, startUnitIndex, targetVariables, slice);
     }
 
     private int getSwitchUnitIndex(Unit unit, Set<Map.Entry<Integer, ArrayList<Unit>>> switchTargetUnitSet) {
@@ -341,17 +333,16 @@ public class ProgramSlicer {
         return index;
     }
 
-    private void addTargetVariable(ValueBox valueBox, HashMap<String, ValueBox> newTargetVariableMap) {
-        Value value = valueBox.getValue();
-        String valueStr = value.toString();
+    private void addTargetVariable(Value value, HashSet<Value> newTargetVariables) {
+        String valueStr = convertToStr(value);
         if (!isVariableStr(valueStr)) {
             return;
         }
 
-        newTargetVariableMap.put(valueStr, valueBox);
+        newTargetVariables.add(value);
     }
 
-    private void addTargetVariables(ArrayList<String> paramTypes, ArrayList<ValueBox> valueBoxes, HashMap<String, ValueBox> newTargetVariableMap) {
+    private void addTargetVariables(ArrayList<String> paramTypes, ArrayList<Value> values, HashSet<Value> newTargetVariables) {
         int size = paramTypes.size();
         for (int i = 0; i < size; i++) {
             String paramType = paramTypes.get(i);
@@ -359,14 +350,14 @@ public class ProgramSlicer {
                 continue;
             }
 
-            ValueBox valueBox = valueBoxes.get(i);
-            addTargetVariable(valueBox, newTargetVariableMap);
+            Value value = values.get(i);
+            addTargetVariable(value, newTargetVariables);
         }
     }
 
-    private void addTargetVariables(ArrayList<ValueBox> valueBoxes, HashMap<String, ValueBox> newTargetVariableMap) {
-        for (ValueBox vb : valueBoxes) {
-            addTargetVariable(vb, newTargetVariableMap);
+    private void addTargetVariables(ArrayList<Value> values, HashSet<Value> newTargetVariables) {
+        for (Value v : values) {
+            addTargetVariable(v, newTargetVariables);
         }
     }
 
@@ -487,13 +478,13 @@ public class ProgramSlicer {
                 return constants;
             }
 
-            ValueBox localValueBox = getLocalValueBox(unit, unitType);
-            if (localValueBox != null && newTargetVariableMap.containsValue(localValueBox)) {
+            Value localValue = getLocalValue(unit, unitType);
+            if (localValue != null && newTargetVariables.contains(localValue)) {
                 return constants;
             }
 
             ArrayList<String> paramTypes = getParamTypes(signature);
-            ArrayList<ValueBox> paramValues = getParamValues(unit, unitType);
+            ArrayList<Value> paramValues = getParamValues(unit, unitType);
             int size = paramTypes.size();
             for (int i = 0; i < size; i++) {
                 String paramType = paramTypes.get(i);
@@ -501,8 +492,8 @@ public class ProgramSlicer {
                     continue;
                 }
 
-                ValueBox paramValue = paramValues.get(i);
-                String valueStr = getValueStr(paramValue);
+                Value paramValue = paramValues.get(i);
+                String valueStr = convertToStr(paramValue);
                 if (isVariableStr(valueStr)) {
                     continue;
                 }

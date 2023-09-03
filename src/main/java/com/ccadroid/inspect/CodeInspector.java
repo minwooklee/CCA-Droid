@@ -1,6 +1,7 @@
 package com.ccadroid.inspect;
 
 import com.ccadroid.util.graph.CallGraph;
+import com.ccadroid.util.soot.Soot;
 import com.ccadroid.util.soot.SootUnit;
 import org.graphstream.graph.Node;
 import soot.*;
@@ -42,7 +43,7 @@ public class CodeInspector {
                 continue;
             }
 
-            SootClass sootClass = Scene.v().getSootClass(name);
+            SootClass sootClass = Soot.getSootClass(name);
             List<SootMethod> sootMethods = sootClass.getMethods();
             ArrayList<SootMethod> tempMethods = new ArrayList<>(sootMethods);
             for (SootMethod m : tempMethods) {

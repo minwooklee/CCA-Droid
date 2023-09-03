@@ -1,12 +1,16 @@
 package com.ccadroid.inspect;
 
+import com.ccadroid.util.soot.Soot;
 import org.graphstream.graph.Edge;
 import org.graphstream.graph.Node;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONTokener;
-import soot.*;
+import soot.SootClass;
+import soot.SootMethod;
+import soot.Unit;
+import soot.Value;
 
 import java.io.File;
 import java.io.IOException;
@@ -115,18 +119,13 @@ public class SlicingCriteriaGenerator {
                 continue;
             }
 
-            HashMap<String, ValueBox> targetVariableMap = new HashMap<>();
+            HashSet<Value> targetVariables = new HashSet<>();
 
             switch (unitType) {
                 case ASSIGN_SIGNATURE_VARIABLE:
                 case RETURN_VALUE: {
-                    ValueBox valueBox = getRightValueBox(unit, unitType);
-                    if (valueBox != null) {
-                        Value value = valueBox.getValue();
-                        String valueStr = value.toString();
-                        targetVariableMap.put(valueStr, valueBox);
-                    }
-
+                    Value value = getRightValue(unit, unitType);
+                    targetVariables.add(value);
                     break;
                 }
 
@@ -138,18 +137,14 @@ public class SlicingCriteriaGenerator {
                 case SPECIAL_INVOKE: {
                     String signature = getSignature(unitStr);
                     ArrayList<String> paramTypes = getParamTypes(signature);
-                    ArrayList<ValueBox> paramValues = getParamValues(unit, unitType);
+                    ArrayList<Value> paramValues = getParamValues(unit, unitType);
                     if (targetParamNums.isEmpty() && !paramValues.isEmpty()) {
                         continue;
                     }
 
                     if (targetParamNums.contains("-1")) {
-                        ValueBox valueBox = getLocalValueBox(unit, unitType);
-                        if (valueBox != null) {
-                            Value value = valueBox.getValue();
-                            String valueStr = value.toString();
-                            targetVariableMap.put(valueStr, valueBox);
-                        }
+                        Value value = getLocalValue(unit, unitType);
+                        targetVariables.add(value);
                     }
 
                     ArrayList<String> tempParamNums = new ArrayList<>(targetParamNums);
@@ -164,17 +159,15 @@ public class SlicingCriteriaGenerator {
                             continue;
                         }
 
-                        ValueBox valueBox = paramValues.get(paramNum);
-                        Value value = valueBox.getValue();
-                        String valueStr = value.toString();
-                        targetVariableMap.put(valueStr, valueBox);
+                        Value value = paramValues.get(paramNum);
+                        targetVariables.add(value);
                     }
 
                     break;
                 }
             }
 
-            if (targetVariableMap.isEmpty() || isDuplicatedCriterion(targetSignature, targetVariableMap, slicingCriteria)) {
+            if (targetVariables.isEmpty() || isDuplicatedCriterion(targetSignature, targetVariables, slicingCriteria)) {
                 continue;
             }
 
@@ -183,7 +176,7 @@ public class SlicingCriteriaGenerator {
             slicingCriterion.setTargetSignature(targetSignature);
             slicingCriterion.setTargetParamNums(targetParamNums);
             slicingCriterion.setTargetUnitIndex(i);
-            slicingCriterion.setTargetVariableMap(new HashMap<>(targetVariableMap));
+            slicingCriterion.setTargetVariables(new HashSet<>(targetVariables));
             if (slicingCriteria.contains(slicingCriterion)) {
                 continue;
             }
@@ -244,7 +237,7 @@ public class SlicingCriteriaGenerator {
 
     private boolean isCorrectSignature(String signature) {
         String className = getClassName(signature);
-        SootClass sootClass = Scene.v().getSootClass(className);
+        SootClass sootClass = Soot.getSootClass(className);
         List<SootMethod> methods = sootClass.getMethods();
         String methodsStr = methods.toString();
 
@@ -298,11 +291,11 @@ public class SlicingCriteriaGenerator {
         listOfCallers.removeAll(targets);
     }
 
-    private boolean isDuplicatedCriterion(String targetSignature, HashMap<String, ValueBox> targetVariableMap, ArrayList<SlicingCriterion> slicingCriteria) {
+    private boolean isDuplicatedCriterion(String targetSignature, HashSet<Value> targetVariables, ArrayList<SlicingCriterion> slicingCriteria) {
         for (SlicingCriterion sc : slicingCriteria) {
             String signature = sc.getTargetSignature();
-            HashMap<String, ValueBox> variableMap = sc.getTargetVariableMap();
-            if (targetSignature.equals(signature) && targetVariableMap.keySet().containsAll(variableMap.keySet())) {
+            HashSet<Value> variables = sc.getTargetVariables();
+            if (targetSignature.equals(signature) && targetVariables.containsAll(variables)) {
                 return true;
             }
         }

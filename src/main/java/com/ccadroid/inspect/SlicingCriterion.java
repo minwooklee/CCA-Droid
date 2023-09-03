@@ -1,16 +1,16 @@
 package com.ccadroid.inspect;
 
-import soot.ValueBox;
+import soot.Value;
 
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.HashSet;
 
 public class SlicingCriterion {
     private String callerName;
     private String targetSignature;
     private int targetUnitIndex;
     private ArrayList<String> targetParamNums;
-    private HashMap<String, ValueBox> targetVariableMap;
+    private HashSet<Value> targetVariables;
 
     public String getCallerName() {
         return callerName;
@@ -44,12 +44,12 @@ public class SlicingCriterion {
         this.targetParamNums = targetParamNums;
     }
 
-    public HashMap<String, ValueBox> getTargetVariableMap() {
-        return targetVariableMap;
+    public HashSet<Value> getTargetVariables() {
+        return targetVariables;
     }
 
-    public void setTargetVariableMap(HashMap<String, ValueBox> targetVariableMap) {
-        this.targetVariableMap = targetVariableMap;
+    public void setTargetVariables(HashSet<Value> targetVariables) {
+        this.targetVariables = targetVariables;
     }
 
     @Override
@@ -59,7 +59,7 @@ public class SlicingCriterion {
 
     @Override
     public String toString() {
-        return "SlicingCriterion{caller=" + callerName + ", targetSignature=" + targetSignature + ", targetVariableMap=" + targetVariableMap + "}";
+        return "SlicingCriterion{caller=" + callerName + ", targetSignature=" + targetSignature + ", targetVariables=" + targetVariables + "}";
     }
 
     @Override
