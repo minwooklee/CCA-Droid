@@ -3,6 +3,7 @@ package com.ccadroid.slice;
 import com.ccadroid.inspect.SlicingCriterion;
 import com.ccadroid.util.graph.BaseGraph;
 import com.ccadroid.util.graph.CallGraph;
+import com.mongodb.client.FindIterable;
 import org.bson.Document;
 import org.graphstream.graph.Node;
 
@@ -15,10 +16,12 @@ import static com.ccadroid.util.soot.SootUnit.PARAMETER;
 public class SliceMerger {
     private final CallGraph callGraph;
     private final SliceDatabase sliceDatabase;
+    private final SliceOptimizer sliceOptimizer;
 
     public SliceMerger() {
         callGraph = new CallGraph();
         sliceDatabase = SliceDatabase.getInstance();
+        sliceOptimizer = SliceOptimizer.getInstance();
     }
 
     public static SliceMerger getInstance() {
@@ -65,6 +68,10 @@ public class SliceMerger {
                 continue;
             }
 
+            if (ids.size() > 1) {
+                removeUnreachableLines(ids, slice);
+            }
+
             sliceDatabase.insert(leafId, targetSignature, targetParamNums, slice);
         }
     }
@@ -74,6 +81,31 @@ public class SliceMerger {
         int topUnitType = topDoc.getInteger(UNIT_TYPE);
 
         return (topUnitType == PARAMETER);
+    }
+
+    private void removeUnreachableLines(ArrayList<String> ids, ArrayList<Document> mergedSlice) {
+        ArrayList<String> unitStrings = sliceOptimizer.getUnreachableUnitStrings(ids);
+        if (unitStrings.isEmpty()) {
+            return;
+        }
+
+        for (String id : ids) {
+            String query = "{'" + NODE_ID + "': '" + id + "'}";
+            FindIterable<Document> result = sliceDatabase.selectAll(query);
+            Document document = result.first();
+            if (document != null) {
+                document.append(USED, true);
+                sliceDatabase.findOneAndUpdate(query, document);
+            }
+        }
+
+        ArrayList<Document> tempSlice = new ArrayList<>(mergedSlice);
+        for (Document l : tempSlice) {
+            String unitStr = l.getString(UNIT_STRING);
+            if (unitStrings.contains(unitStr)) {
+                mergedSlice.remove(l);
+            }
+        }
     }
 
     private static class Holder {

@@ -58,6 +58,12 @@ public class SliceDatabase {
         return (int) collection.countDocuments(query);
     }
 
+    public void findOneAndUpdate(String json, Document newDocument) {
+        Document query = Document.parse(json);
+
+        collection.findOneAndReplace(query, newDocument);
+    }
+
     public ArrayList<Document> getSlice(String id) {
         FindIterable<Document> result = selectAll("{'" + NODE_ID + "': '" + id + "'}");
         Document document = result.first();

@@ -312,7 +312,7 @@ public class SootUnit {
 
     public static String getParamNum(String unitStr, int unitType) {
         if (unitType != PARAMETER) {
-            return null;
+            return "-1";
         }
 
         Matcher matcher = NUMBER_PATTERN.matcher(unitStr);
@@ -321,14 +321,27 @@ public class SootUnit {
         return matcher.group();
     }
 
+    public static Value getConditionValue(Unit unit, int unitType) {
+        if (unitType != IF) {
+            return null;
+        }
+
+        JIfStmt stmt = (JIfStmt) unit;
+
+        return stmt.getCondition();
+    }
+
     public static ArrayList<Value> getConditionValues(Unit unit, int unitType) {
         if (unitType != IF) {
             return new ArrayList<>();
         }
 
         ArrayList<Value> values = new ArrayList<>();
-        JIfStmt stmt = (JIfStmt) unit;
-        Value value = stmt.getCondition();
+        Value value = getConditionValue(unit, unitType);
+        if (value == null) {
+            return new ArrayList<>();
+        }
+
         List<ValueBox> valueBoxes = value.getUseBoxes();
         for (ValueBox vb : valueBoxes) {
             Value v = vb.getValue();

@@ -130,7 +130,7 @@ public class RuleChecker {
                         continue;
                     }
 
-                    FindIterable<Document> tempSlice = sliceDatabase.selectAll("{'" + GROUP_ID + "': '" + topId + "'}");
+                    FindIterable<Document> tempSlice = sliceDatabase.selectAll("{'" + GROUP_ID + "': '" + topId + "', '" + USED + "': {$exists: false}}");
                     for (Document d : tempSlice) {
                         List<Document> content = d.getList(CONTENT, Document.class);
                         if (tempSlices.containsAll(content)) {

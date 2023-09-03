@@ -26,19 +26,23 @@ public class ProgramSlicer {
     private static final int LOWER_LEVEL = Integer.parseInt(Configuration.getProperty("slice.lowerLevel"));
     private final CodeInspector codeInspector;
     private final SlicingCriteriaGenerator slicingCriteriaGenerator;
+    private final SliceOptimizer sliceOptimizer;
     private final SliceDatabase sliceDatabase;
     private final SliceMerger sliceMerger;
     private final Deque<SlicingCriterion> deque;
-    private final HashSet<SlicingCriterion> tempSlicingCriteria;
+    private final HashMap<String, ArrayList<Unit>> unitsMap;
+    private final HashMap<Unit, HashSet<SlicingCriterion>> tempSlicingCriteriaMap;
     private HashSet<Value> newTargetVariables;
 
     public ProgramSlicer() {
         codeInspector = CodeInspector.getInstance();
         slicingCriteriaGenerator = SlicingCriteriaGenerator.getInstance();
+        sliceOptimizer = SliceOptimizer.getInstance();
         sliceDatabase = SliceDatabase.getInstance();
         sliceMerger = SliceMerger.getInstance();
         deque = new LinkedList<>();
-        tempSlicingCriteria = new HashSet<>();
+        unitsMap = new HashMap<>();
+        tempSlicingCriteriaMap = new HashMap<>();
     }
 
     public static ProgramSlicer getInstance() {
@@ -55,6 +59,10 @@ public class ProgramSlicer {
             SlicingCriterion sc = deque.poll();
             sliceStatement(sc);
         }
+    }
+
+    public ArrayList<Unit> getUnits(String nodeId) {
+        return unitsMap.get(nodeId);
     }
 
     private void sliceStatement(SlicingCriterion slicingCriterion) {
@@ -126,7 +134,7 @@ public class ProgramSlicer {
                 ArrayList<Value> conditionValues = getConditionValues(unit, unitType);
                 addTargetVariables(conditionValues, newTargetVariables);
 
-                units.add(unit);
+                units.add(0, unit);
                 addLine(unit, unitType, callerName, lineNum, slice);
                 continue;
             } else if (unitType == GOTO) {
@@ -134,14 +142,14 @@ public class ProgramSlicer {
                     continue;
                 }
 
-                units.add(unit);
+                units.add(0, unit);
                 addLine(unit, unitType, callerName, lineNum, slice);
                 continue;
             } else if (unitType == SWITCH) {
                 Value value = getSwitchValue(unit, unitType);
                 addTargetVariable(value, newTargetVariables);
 
-                units.add(unit);
+                units.add(0, unit);
                 addLine(unit, unitType, callerName, lineNum, slice);
                 continue;
             }
@@ -219,7 +227,7 @@ public class ProgramSlicer {
                         addTargetVariable(localValue, newTargetVariables);
                     }
 
-                    handleAssignInvokeUnit(node, topId, signature);
+                    handleAssignInvokeUnit(unit, node, topId, signature);
                     break;
                 }
 
@@ -262,7 +270,7 @@ public class ProgramSlicer {
                     }
 
                     String signature = getSignature(unitStr);
-                    handleAssignVariableSignatureUnit(node, topId, callerName, signature);
+                    handleAssignVariableSignatureUnit(unit, node, topId, callerName, signature);
                     break;
                 }
 
@@ -305,15 +313,19 @@ public class ProgramSlicer {
                 }
             }
 
-            units.add(unit);
+            units.add(0, unit);
             addLine(unit, unitType, callerName, lineNum, slice);
         }
 
+        ArrayList<Unit> unreachableUnits = sliceOptimizer.getUnreachableUnits(tempWholeUnits, units);
+        removeTempSlicingCriteria(unreachableUnits);
+
+        units.removeAll(unreachableUnits);
+        unitsMap.put(nodeId, units);
+
         handleParameterUnit(node, topId, callerName, newParamNums);
 
-        deque.addAll(tempSlicingCriteria);
-        tempSlicingCriteria.clear();
-
+        addTempSlicingCriteria(units);
         sliceDatabase.insert(nodeId, topId, callerName, targetSignature, startUnitIndex, targetVariables, slice);
     }
 
@@ -361,7 +373,7 @@ public class ProgramSlicer {
         }
     }
 
-    private void handleAssignInvokeUnit(Node parent, String topId, String calleeName) {
+    private void handleAssignInvokeUnit(Unit unit, Node parent, String topId, String calleeName) {
         int level = (int) parent.getAttribute(LEVEL);
         if (level == LOWER_LEVEL) {
             return;
@@ -374,12 +386,13 @@ public class ProgramSlicer {
             String childId = String.valueOf(sc.hashCode());
             Node child = sliceMerger.addNode(childId, childId, topId, level);
             sliceMerger.addEdge(parent, child, DOWNWARD);
-
-            tempSlicingCriteria.add(sc);
         }
+
+        HashSet<SlicingCriterion> tempSlicingCriteria = new HashSet<>(slicingCriteria);
+        tempSlicingCriteriaMap.put(unit, tempSlicingCriteria);
     }
 
-    private void handleAssignVariableSignatureUnit(Node sibling, String topId, String oldCallerName, String targetSignature) {
+    private void handleAssignVariableSignatureUnit(Unit unit, Node sibling, String topId, String oldCallerName, String targetSignature) {
         Node oldCaller = codeInspector.getNode(oldCallerName);
         int level = (int) sibling.getAttribute(LEVEL);
         String newSiblingId = String.valueOf(targetSignature.hashCode());
@@ -396,6 +409,7 @@ public class ProgramSlicer {
             return;
         }
 
+        HashSet<SlicingCriterion> tempSlicingCriteria = new HashSet<>();
         Stream<Edge> stream = valueNode.edges();
         List<Edge> edges = stream.collect(Collectors.toList());
         for (Edge e : edges) {
@@ -415,10 +429,12 @@ public class ProgramSlicer {
                 String parentId = String.valueOf(sc.hashCode());
                 Node parent = sliceMerger.addNode(parentId, parentId, topId, level);
                 sliceMerger.addEdge(newSibling, parent, UPWARD);
-
-                tempSlicingCriteria.add(sc);
             }
+
+            tempSlicingCriteria.addAll(slicingCriteria);
         }
+
+        tempSlicingCriteriaMap.put(unit, tempSlicingCriteria);
     }
 
     private void handleParameterUnit(Node child, String topId, String calleeName, ArrayList<String> paramNums) {
@@ -445,8 +461,7 @@ public class ProgramSlicer {
                 String parentId = String.valueOf(sc.hashCode());
                 Node parent = sliceMerger.addNode(parentId, parentId, topId, level);
                 sliceMerger.addEdge(child, parent, UPWARD);
-
-                tempSlicingCriteria.add(sc);
+                deque.add(sc);
             }
         }
     }
@@ -514,6 +529,24 @@ public class ProgramSlicer {
         }
 
         return constants;
+    }
+
+    private void removeTempSlicingCriteria(ArrayList<Unit> unreachableUnits) {
+        for (Unit u : unreachableUnits) {
+            HashSet<SlicingCriterion> tempSlicingCriteria = tempSlicingCriteriaMap.remove(u);
+            deque.removeAll(tempSlicingCriteria);
+        }
+    }
+
+    private void addTempSlicingCriteria(ArrayList<Unit> units) {
+        for (Unit u : units) {
+            HashSet<SlicingCriterion> tempSlicingCriteria = tempSlicingCriteriaMap.remove(u);
+            if (tempSlicingCriteria == null) {
+                continue;
+            }
+
+            deque.addAll(tempSlicingCriteria);
+        }
     }
 
     private static class Holder {

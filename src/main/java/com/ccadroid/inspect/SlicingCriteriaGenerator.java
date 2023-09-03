@@ -27,10 +27,12 @@ import static com.ccadroid.util.soot.SootUnit.*;
 public class SlicingCriteriaGenerator {
     private final ApkParser apkParser;
     private final CodeInspector codeInspector;
+    private final HashMap<String, SlicingCriterion> slicingCriterionMap;
 
     public SlicingCriteriaGenerator() {
         apkParser = ApkParser.getInstance();
         codeInspector = CodeInspector.getInstance();
+        slicingCriterionMap = new HashMap<>();
     }
 
     public static SlicingCriteriaGenerator getInstance() {
@@ -66,6 +68,9 @@ public class SlicingCriteriaGenerator {
                 String callerName = caller.getId();
                 ArrayList<ArrayList<String>> listOfCallers = listOfCallersMap.get(callerName);
                 if (listOfCallers != null) {
+                    continue;
+                }
+                if (!callerName.contains("Crypto1")) {
                     continue;
                 }
 
@@ -181,10 +186,16 @@ public class SlicingCriteriaGenerator {
                 continue;
             }
 
+            String nodeId = String.valueOf(slicingCriterion.hashCode());
+            slicingCriterionMap.put(nodeId, slicingCriterion);
             slicingCriteria.add(slicingCriterion);
         }
 
         return slicingCriteria;
+    }
+
+    public SlicingCriterion getSlicingCriterion(String nodeId) {
+        return slicingCriterionMap.get(nodeId);
     }
 
     private ArrayList<SlicingCriterion> getSlicingCandidates(File ruleFileDir) {
