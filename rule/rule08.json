@@ -1,0 +1,29 @@
+{
+	"slicingSignatures": {
+		"<javax.crypto.Cipher: void init(int,java.security.Key)>": [1],
+        "<javax.crypto.Cipher: void init(int,java.security.Key,java.security.SecureRandom)>": [1],
+        "<javax.crypto.Cipher: void init(int,java.security.Key,java.security.spec.AlgorithmParameterSpec)>": [1],
+        "<javax.crypto.Cipher: void init(int,java.security.Key,java.security.spec.AlgorithmParameterSpec,java.security.SecureRandom)>": [1],
+        "<javax.crypto.Cipher: void init(int,java.security.Key,java.security.AlgorithmParameters)>": [1],
+        "<javax.crypto.Cipher: void init(int,java.security.Key,java.security.AlgorithmParameters,java.security.SecureRandom)>": [1]
+	},
+	"insecureRule": {
+		"ruleID": "8-1",
+		"description": "This method uses an insecure random method for generating cryptographic key",
+		"targetSignatures": [
+			"<java.util.Random: void nextBytes(byte[])>",
+        	"<java.util.Random: int nextInt()>",
+        	"<android.os.SystemClock: long uptimeMillis()>",
+        	"<android.os.SystemClock: long elapsedRealtime()>"
+		]
+	},
+	"secureRule": {
+		"ruleID": "8-2",
+		"description": "This method uses a secure random method for generating cryptographic key",
+		"targetSignatures": [
+        	"<java.security.SecureRandom: void nextBytes(byte[])>",
+        	"<java.security.SecureRandom: int nextInt()>",
+        	"<javax.crypto.KeyGenerator: javax.crypto.SecretKey generateKey()>"
+		]
+	}
+}

@@ -1,0 +1,24 @@
+{
+	"slicingSignatures": {
+		"<javax.crypto.Cipher: void init(int,java.security.Key)>": [-1],
+        "<javax.crypto.Cipher: void init(int,java.security.Key,java.security.AlgorithmParameters)>": [-1],
+        "<javax.crypto.Cipher: void init(int,java.security.Key,java.security.spec.AlgorithmParameterSpec)>": [-1],
+        "<javax.crypto.Cipher: void init(int,java.security.Key,java.security.spec.AlgorithmParameterSpec,java.security.SecureRandom)>": [-1],
+		"<javax.crypto.Cipher: void init(int,java.security.Key,java.security.AlgorithmParameters,java.security.SecureRandom)>": [-1],
+        "<javax.crypto.Cipher: void init(int,java.security.Key,java.security.SecureRandom)>": [-1]
+	},
+	"insecureRule": {
+		"ruleID": "1-1",
+		"description": "This method uses an insecure algorithm",
+		"targetAlgorithm": "(?i)(ARC4/.*)|(RC2)|(RC4)|(DES)|(DES/.*)",
+		"targetSignatures": [
+			"<javax.crypto.spec.DESKeySpec: void DESKeySpec(byte[])>",
+			"<javax.crypto.spec.DESKeySpec: void DESKeySpec(byte[],int)>"
+		]
+	},
+	"secureRule": {
+		"ruleID": "1-2",
+		"description": "This method uses secure algorithm",
+		"targetAlgorithm": "(?i)(Blowfish)|(DESede)|(DESede/.*)|(AES/.*)|(AES)|(IDEA)"
+	}
+}

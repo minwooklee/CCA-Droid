@@ -1,0 +1,21 @@
+{
+	"slicingSignatures": {
+		"<java.security.KeyPairGenerator: void initialize(int)>": [0],
+        "<java.security.KeyPairGenerator: void initialize(int,java.security.SecureRandom)>": [0],
+        "<java.security.spec.RSAKeyGenParameterSpec: void <init>(int,java.math.BigInteger)>": [0],
+        "<java.security.spec.X509EncodedKeySpec: void <init>(byte[])>": [0],
+        "<java.security.spec.PKCS8EncodedKeySpec: void <init>(byte[])>": [0]
+	},
+	"insecureRule": {
+		"ruleID": "9-1",
+		"description": "This method uses short size RSA key",
+		"targetConstant": ".*",
+		"targetConstantSize": "<2048"
+	},
+	"secureRule": {
+		"ruleID": "9-2",
+		"description": "This method uses enough size RSA key",
+		"targetConstant": ".*",
+		"targetConstantSize": ">=2048"
+	}
+}
