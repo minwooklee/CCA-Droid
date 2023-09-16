@@ -7,16 +7,20 @@
 	"insecureRule": {
 		"ruleID": "12-1",
 		"description": "This method uses Encrypt-and-MAC scheme",
-		"targetSchemeTypes": [
-			"EncryptandMAC"
-		]
+		"conditions": {
+			"targetSchemeTypes": [
+				"EncryptandMAC"
+			]
+		}
 	},
 	"secureRule": {
 		"ruleID": "12-2",
 		"description": "This method uses secure MAC scheme",
-		"targetSchemeTypes": [
-			"EncryptthenMAC",
-			"MACthenEncrypt"
-		]
+		"conditions": {
+			"targetSchemeTypes": [
+				"EncryptthenMAC",
+				"MACthenEncrypt"
+			]
+		}
 	}
 }

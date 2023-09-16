@@ -11,15 +11,23 @@
 	"insecureRule": {
 		"ruleID": "2-1",
 		"description": "This method uses the ECB algorithm and encrypts at least 1 block",
-		"targetConstant": ".*",
-		"targetAlgorithm": "(?i)AES/ECB.*",
-		"targetConstantLen": ">8"
+        "conditions": {
+            "targetAlgorithms": [
+				"AES/ECB"
+			],
+            "targetConstant": ".*",
+        	"targetConstantLength": "x>8"
+        }
 	},
 	"secureRule": {
 		"ruleID": "2-2",
 		"description": "This method uses a ECB algorithm, but encrypts only 1 block",
-		"targetConstant": ".*",
-		"targetAlgorithm": "^((?!(?i)(DES|AES|RSA|HMAC)|^[0-9]+$).)*$",
-		"targetConstantLen": "<=8"
+		"conditions": {
+			"targetAlgorithms": [
+				"AES/ECB"
+			],
+			"targetConstant": ".*",
+			"targetConstantLength": "x<=8"
+		}
 	}
 }

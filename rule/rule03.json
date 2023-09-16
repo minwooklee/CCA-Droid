@@ -18,22 +18,26 @@
 	"insecureRule": {
 		"ruleID": "3-1",
 		"description": "This slice uses a hardcoded key",
-		"targetConstant": ".*"
+		"conditions": {
+			"targetConstant": ".*"
+		}
 	},
 	"secureRule": {
 		"ruleID": "3-2",
 		"description": "This slice uses a random key",
-		"targetSignatures": [
-			"<java.lang.System: long currentTimeMillis()>",
-			"<java.util.Random: int nextInt()>",
-			"<java.util.Random: int nextInt(int)>",
-			"<java.util.Random: long nextLong()>",
-			"<java.util.Random: void nextBytes(byte[])>",
-			"<java.security.SecureRandom int next(int)>",
-			"<java.security.SecureRandom: int nextInt()>",
-			"<java.security.SecureRandom: java.util.stream.IntStream ints()>",
-			"<java.security.SecureRandom: void nextBytes(byte[])>",
-			"<javax.crypto.KeyAgreement: byte[] generateSecret()>"
-		]
+		"conditions": {
+			"targetSignatures": [
+				"<java.lang.System: long currentTimeMillis()>",
+				"<java.util.Random: int nextInt()>",
+				"<java.util.Random: int nextInt(int)>",
+				"<java.util.Random: long nextLong()>",
+				"<java.util.Random: void nextBytes(byte[])>",
+				"<java.security.SecureRandom int next(int)>",
+				"<java.security.SecureRandom: int nextInt()>",
+				"<java.security.SecureRandom: java.util.stream.IntStream ints()>",
+				"<java.security.SecureRandom: void nextBytes(byte[])>",
+				"<javax.crypto.KeyAgreement: byte[] generateSecret()>"
+			]
+		}
 	}
 }

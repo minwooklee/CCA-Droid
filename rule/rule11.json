@@ -10,14 +10,27 @@
 	"insecureRule": {
 		"ruleID": "11-1",
 		"description": "This method uses insecure padding for RSA algorithm",
-		"targetAlgorithm": "(?i)(RSA)|(RSA.*NoPadding)|(.*PKCS1Padding)"
+		"conditions": {
+			"targetAlgorithms": [
+				"RSA/.*/NoPadding",
+				"RSA/.*/PKCS1Padding"
+			]
+		}
 	},
 	"secureRule": {
 		"ruleID": "11-2",
 		"description": "This method uses secure padding for RSA algorithm",
-		"targetAlgorithm": "(?i)(.*OAEP.*)",
-		"targetSignatures": [
-			"<javax.crypto.spec.OAEPParameterSpec: void <init>(java.lang.String,java.lang.String,java.security.spec.AlgorithmParameterSpec,javax.crypto.spec.PSource)>"
+		"conditions": [
+			{
+				"targetAlgorithms": [
+					"RSA/.*/OAEP.*"
+				]
+			},
+			{
+				"targetSignatures": [
+					"<javax.crypto.spec.OAEPParameterSpec: void <init>(java.lang.String,java.lang.String,java.security.spec.AlgorithmParameterSpec,javax.crypto.spec.PSource)>"
+				]
+			}
 		]
 	}
 }

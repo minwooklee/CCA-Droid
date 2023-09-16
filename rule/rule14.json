@@ -6,18 +6,22 @@
 	"insecureRule": {
 		"ruleID": "14-1",
 		"description": "This method uses a short size key for generating MAC",
-		"targetConstantSize": "<16",
-		"targetSchemeTypes": [
-			"EncryptandMAC"
-		]
+		"conditions": {
+			"targetSchemeTypes": [
+				"EncryptandMAC"
+			],
+			"targetConstantSize": "<16"
+		}
 	},
 	"secureRule": {
 		"ruleID": "14-2",
 		"description": "This method uses a enough size key for generating MAC",
-		"targetConstant": ".*",
-		"targetConstantSize": ">=16",
-		"targetSchemeTypes": [
-			"EncryptthenMAC"
-		]
+		"conditions": {
+			"targetSchemeTypes": [
+				"EncryptthenMAC"
+			],
+			"targetConstant": ".*",
+			"targetConstantSize": ">=16"
+		}
 	}
 }

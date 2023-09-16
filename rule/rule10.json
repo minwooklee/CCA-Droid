@@ -8,16 +8,21 @@
 	"insecureRule": {
 		"ruleID": "10-1",
 		"description": "This method uses a hardcoded IV",
-		"targetConstant": ".*"
+		"conditions": {
+			"targetConstant": ".*",
+			"targetConstantLength": "x>=16"
+		}
 	},
 	"secureRule": {
 		"ruleID": "10-2",
 		"description": "This method uses a random IV",
-		"targetSignatures": [
-			"<java.util.Random: void nextBytes(byte[])>",
-			"<java.util.Random: int nextInt()>",
-			"<java.security.SecureRandom: void nextBytes(byte[])>",
-			"<java.security.SecureRandom: int nextInt()>"
-		]
+		"conditions": {
+			"targetSignatures": [
+				"<java.util.Random: void nextBytes(byte[])>",
+				"<java.util.Random: int nextInt()>",
+				"<java.security.SecureRandom: void nextBytes(byte[])>",
+				"<java.security.SecureRandom: int nextInt()>"
+			]
+		}
 	}
 }

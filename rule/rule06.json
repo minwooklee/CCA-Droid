@@ -9,19 +9,23 @@
 	"insecureRule": {
 		"ruleID": "6-1",
 		"description": "This method uses static seeds",
-		"targetConstant": ".*"
+		"conditions": {
+			"targetConstant": ".*"
+		}
 	},
 	"secureRule": {
 		"ruleID": "6-2",
 		"description": "This method uses random seeds",
-		"targetSignatures": [
-			"<java.lang.System: long nanoTime()>",
-			"<java.util.Random: int nextInt()>",
-			"<java.util.Random: long nextLong()>",
-			"<java.util.Random: void nextBytes(byte[])>",
-			"<java.security.SecureRandom: void nextBytes(byte[])>",
-			"<java.security.SecureRandom: int nextInt()>",
-			"<java.security.SecureRandom: long nextLong()>"
-		]
+		"conditions": {
+			"targetSignatures": [
+				"<java.lang.System: long nanoTime()>",
+				"<java.util.Random: int nextInt()>",
+				"<java.util.Random: long nextLong()>",
+				"<java.util.Random: void nextBytes(byte[])>",
+				"<java.security.SecureRandom: void nextBytes(byte[])>",
+				"<java.security.SecureRandom: int nextInt()>",
+				"<java.security.SecureRandom: long nextLong()>"
+			]
+		}
 	}
 }

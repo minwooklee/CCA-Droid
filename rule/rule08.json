@@ -10,20 +10,24 @@
 	"insecureRule": {
 		"ruleID": "8-1",
 		"description": "This method uses an insecure random method for generating cryptographic key",
-		"targetSignatures": [
-			"<java.util.Random: void nextBytes(byte[])>",
-        	"<java.util.Random: int nextInt()>",
-        	"<android.os.SystemClock: long uptimeMillis()>",
-        	"<android.os.SystemClock: long elapsedRealtime()>"
-		]
+		"conditions": {
+			"targetSignatures": [
+				"<java.util.Random: void nextBytes(byte[])>",
+	        	"<java.util.Random: int nextInt()>",
+	        	"<android.os.SystemClock: long uptimeMillis()>",
+	        	"<android.os.SystemClock: long elapsedRealtime()>"
+			]
+		}
 	},
 	"secureRule": {
 		"ruleID": "8-2",
 		"description": "This method uses a secure random method for generating cryptographic key",
-		"targetSignatures": [
-        	"<java.security.SecureRandom: void nextBytes(byte[])>",
-        	"<java.security.SecureRandom: int nextInt()>",
-        	"<javax.crypto.KeyGenerator: javax.crypto.SecretKey generateKey()>"
-		]
+		"conditions": {
+			"targetSignatures": [
+	        	"<java.security.SecureRandom: void nextBytes(byte[])>",
+	        	"<java.security.SecureRandom: int nextInt()>",
+	        	"<javax.crypto.KeyGenerator: javax.crypto.SecretKey generateKey()>"
+			]
+		}
 	}
 }

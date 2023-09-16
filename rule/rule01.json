@@ -10,15 +10,33 @@
 	"insecureRule": {
 		"ruleID": "1-1",
 		"description": "This method uses an insecure algorithm",
-		"targetAlgorithm": "(?i)(ARC4/.*)|(RC2)|(RC4)|(DES)|(DES/.*)",
-		"targetSignatures": [
-			"<javax.crypto.spec.DESKeySpec: void DESKeySpec(byte[])>",
-			"<javax.crypto.spec.DESKeySpec: void DESKeySpec(byte[],int)>"
+		"conditions": [
+			{
+				"targetAlgorithms": [
+					"ARC4",
+					"DES",
+					"RC2",
+					"RC4"
+				]
+			},
+			{
+				"targetSignatures": [
+					"<javax.crypto.spec.DESKeySpec: void DESKeySpec(byte[])>",
+					"<javax.crypto.spec.DESKeySpec: void DESKeySpec(byte[],int)>"
+				]
+			}
 		]
 	},
 	"secureRule": {
 		"ruleID": "1-2",
 		"description": "This method uses secure algorithm",
-		"targetAlgorithm": "(?i)(Blowfish)|(DESede)|(DESede/.*)|(AES/.*)|(AES)|(IDEA)"
+		"conditions": {
+			"targetAlgorithms": [
+				"AES",
+				"Blowfish",
+				"DESede",
+				"IDEA"
+			]
+		}
 	}
 }

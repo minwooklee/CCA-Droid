@@ -7,13 +7,17 @@
 	"insecureRule": {
 		"ruleID": "5-1",
 		"description": "This method uses short PBE iteration count",
-		"targetConstant": "[0-9]{1,10}",
-		"targetConstantSize": "<1000"
+		"conditions": {
+			"targetConstant": "[0-9]{1,10}",
+			"targetConstantSize": "x<1000"
+		}
 	},
 	"secureRule": {
 		"ruleID": "5-2",
 		"description": "This method uses enough PBE iteration count",
-		"targetConstant": "[0-9]{1,10}",
-		"targetConstantSize": ">=1000"
+		"conditions": {
+			"targetConstant": "[0-9]{1,10}",
+			"targetConstantSize": "x>=1000"
+		}
 	}
 }

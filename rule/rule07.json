@@ -8,19 +8,23 @@
 	"insecureRule": {
 		"ruleID": "7-1",
 		"description": "This method uses an insecure random method for generating IV",
-		"targetSignatures": [
-			"<java.util.Random: void nextBytes(byte[])>",
-	        "<java.util.Random: int nextInt()>",
-	        "<android.os.SystemClock: long uptimeMillis()>",
-	        "<android.os.SystemClock: long elapsedRealtime()>"
-		]
+		"conditions": {
+			"targetSignatures": [
+				"<java.util.Random: void nextBytes(byte[])>",
+		        "<java.util.Random: int nextInt()>",
+		        "<android.os.SystemClock: long uptimeMillis()>",
+		        "<android.os.SystemClock: long elapsedRealtime()>"
+			]
+		}
 	},
 	"secureRule": {
 		"ruleID": "7-2",
 		"description": "This method uses a secure random method for generating IV",
-		"targetSignatures": [
-			"<java.security.SecureRandom: void nextBytes(byte[])>",
-			"<java.security.SecureRandom: int nextInt()>"
-		]
+		"conditions": {
+			"targetSignatures": [
+				"<java.security.SecureRandom: void nextBytes(byte[])>",
+				"<java.security.SecureRandom: int nextInt()>"
+			]
+		}
 	}
 }

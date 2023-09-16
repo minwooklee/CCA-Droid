@@ -14,16 +14,35 @@
 	"insecureRule": {
 		"ruleID": "13-1",
 		"description": "This method is insecure for CCA",
-		"targetAlgorithm": "(?i)^((ARC4/.*)|(RC2)|(RC4)|(DES)|(DES/.*)|(Blowfish)|(DESede)|(DESede/.*)|(AES/(ECB|CBC|OFB|CFB).*)|(AES)|(IDEA))$"
+		"conditions": {
+			"targetAlgorithms": [
+				"AES-GCM",
+				"ARC4",
+				"Blowfish",
+				"DES",
+				"DESede",
+				"IDEA",
+				"RC2",
+				"RC4"
+			]
+		}
 	},
 	"secureRule": {
 		"ruleID": "13-2",
 		"description": "This method is secure for CCA",
-		"targetAlgorithm": "(?i)(.*GCM.*)",
-		"targetSchemeTypes": [
-			"EncryptthenMAC",
-			"EncryptandMAC",
-			"MACthenEncrypt"
+		"conditions": [
+			{ 
+				"targetSchemeTypes": [
+					"EncryptthenMAC",
+					"EncryptandMAC",
+					"MACthenEncrypt"
+				]
+			},
+			{
+				"targetAlgorithms": [
+					"AES/GCM"
+				]
+			}
 		]
 	}
 }
