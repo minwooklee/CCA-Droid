@@ -94,7 +94,6 @@ public class SliceMerger {
             FindIterable<Document> result = sliceDatabase.selectAll(query);
             Document document = result.first();
             if (document != null) {
-                document.append(USED, true);
                 sliceDatabase.findOneAndUpdate(query, document);
             }
         }

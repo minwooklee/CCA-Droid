@@ -9,7 +9,6 @@ public class SliceConstants {
     public static final String TARGET_SIGNATURE = "targetSignature";
     public static final String TARGET_PARAM_NUMS = "targetParamNums";
     public static final String CONTENT = "content";
-    public static final String USED = "used";
     public static final String CONSTANTS = "constants";
     public static final String ARRAY_SIZE = "arraySize";
     protected static final String LINE_NUMBER = "lineNum";
