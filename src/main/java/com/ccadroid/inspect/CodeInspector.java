@@ -82,6 +82,17 @@ public class CodeInspector {
                                 break;
                             }
 
+                            case ASSIGN_SIGNATURE_CONSTANT: {
+                                String signature = getSignature(u);
+                                Value value = constantValueMap.get(signature);
+                                if (value == null) {
+                                    value = getRightValue(u, unitType);
+                                    constantValueMap.put(signature, value);
+                                }
+
+                                break;
+                            }
+
                             case ASSIGN_VARIABLE_SIGNATURE:
                             case ASSIGN_SIGNATURE_VARIABLE: {
                                 String signature = getSignature(u);

@@ -217,11 +217,17 @@ public class ProgramSlicer {
                 case ASSIGN_INTERFACE_INVOKE:
                 case ASSIGN_SPECIAL_INVOKE: {
                     String signature = getSignature(unitStr);
-                    ArrayList<String> paramTypes = getParamTypes(signature);
-                    ArrayList<Value> paramValues = getParamValues(unit, unitType);
+                    String methodName = getMethodName(signature);
+                    if (methodName.contains("$")) { // for virtual method
+                        Value leftValue = getLeftValue(unit, unitType);
+                        newTargetVariables.remove(leftValue);
+                    }
 
                     Value localValue = getLocalValue(unit, unitType);
                     if (localValue == null) {
+                        ArrayList<String> paramTypes = getParamTypes(signature);
+                        ArrayList<Value> paramValues = getParamValues(unit, unitType);
+
                         addTargetVariables(paramTypes, paramValues, newTargetVariables);
                     } else {
                         addTargetVariable(localValue, newTargetVariables);
@@ -477,6 +483,9 @@ public class ProgramSlicer {
             if (!constants.isEmpty()) {
                 line.append(CONSTANTS, constants);
             }
+        } else if (unitType == NEW_ARRAY) {
+            String size = getArraySize(unit, unitType);
+            line.append(ARRAY_SIZE, size);
         }
 
         slice.add(0, line);
@@ -493,6 +502,10 @@ public class ProgramSlicer {
                 return constants;
             }
 
+            if (className.startsWith("android")) {
+                return constants;
+            }
+
             Value localValue = getLocalValue(unit, unitType);
             if (localValue != null && newTargetVariables.contains(localValue)) {
                 return constants;
@@ -503,7 +516,7 @@ public class ProgramSlicer {
             int size = paramTypes.size();
             for (int i = 0; i < size; i++) {
                 String paramType = paramTypes.get(i);
-                if (!paramType.contains("char") && !paramType.contains("String") && !paramType.contains("byte")) {
+                if (!paramType.contains("int") && !paramType.contains("char") && !paramType.contains("String") && !paramType.contains("byte")) {
                     continue;
                 }
 

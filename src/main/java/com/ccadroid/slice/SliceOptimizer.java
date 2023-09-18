@@ -91,8 +91,8 @@ public class SliceOptimizer {
 
                 Unit targetUnit1 = getTargetUnit(unit, unitType);
                 int targetUnitIndex1 = wholeUnits.indexOf(targetUnit1);
-                Unit gotoUnit = wholeUnits.get(targetUnitIndex1 - 1);
-                int gotoUnitIndex = wholeUnits.indexOf(gotoUnit);
+                Unit prevUnit = wholeUnits.get(targetUnitIndex1 - 1);
+                int gotoUnitIndex = wholeUnits.indexOf(prevUnit);
                 if (result == 1) {
                     for (int j = i + 1; j < gotoUnitIndex; j++) {
                         Unit u = wholeUnits.get(j);
@@ -101,7 +101,12 @@ public class SliceOptimizer {
 
                     i = targetUnitIndex1;
                 } else {
-                    Unit targetUnit2 = getTargetUnit(gotoUnit, GOTO);
+                    int prevUnitType = getUnitType(prevUnit);
+                    Unit targetUnit2 = getTargetUnit(prevUnit, prevUnitType);
+                    if (targetUnit2 == null) {
+                        continue;
+                    }
+
                     int targetUnitIndex2 = wholeUnits.indexOf(targetUnit2);
                     for (int j = gotoUnitIndex + 1; j <= targetUnitIndex2; j++) {
                         Unit u = wholeUnits.get(j);

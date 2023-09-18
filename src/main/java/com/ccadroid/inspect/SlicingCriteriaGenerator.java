@@ -70,9 +70,6 @@ public class SlicingCriteriaGenerator {
                 if (listOfCallers != null) {
                     continue;
                 }
-                if (!callerName.contains("Crypto1")) {
-                    continue;
-                }
 
                 listOfCallers = codeInspector.traverseCallers(callerName, true);
                 setReachableCallers(packageName, appClassName, appComponents, listOfCallers);
@@ -109,7 +106,7 @@ public class SlicingCriteriaGenerator {
         Collections.reverse(wholeUnits);
 
         int wholeUnitCount = wholeUnits.size();
-        for (int i = wholeUnitCount - 1; i > 0; i--) {
+        for (int i = 0; i < wholeUnitCount; i++) {
             Unit unit = wholeUnits.get(i);
             String unitStr = unit.toString();
             if (!(unitStr.contains(targetSignature))) {

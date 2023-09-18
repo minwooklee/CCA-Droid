@@ -255,7 +255,7 @@ public class SootUnit {
     }
 
     public static Value getRightValue(Unit unit, int unitType) {
-        if ((unitType & ASSIGN) != ASSIGN) {
+        if ((unitType & ASSIGN) != ASSIGN && unitType != RETURN_VALUE) {
             return null;
         }
 
@@ -315,10 +315,35 @@ public class SootUnit {
             return "-1";
         }
 
-        Matcher matcher = NUMBER_PATTERN.matcher(unitStr);
+        String[] arr = unitStr.split(" := ");
+        Matcher matcher = NUMBER_PATTERN.matcher(arr[1]);
         matcher.find();
 
         return matcher.group();
+    }
+
+    public static String getArraySize(Unit unit, int unitType) {
+        if (unitType != NEW_ARRAY) {
+            return null;
+        }
+
+        Value value = getRightValue(unit, unitType);
+        if (value == null) {
+            return null;
+        }
+
+        JNewArrayExpr expr = (JNewArrayExpr) value;
+        Value size = expr.getSize();
+
+        return convertToStr(size);
+    }
+
+    public static String getArraySize(String unitStr, int unitType) {
+        if (unitType != NEW_ARRAY) {
+            return null;
+        }
+
+        return unitStr.substring(unitStr.indexOf("[") + 1, unitStr.indexOf("]"));
     }
 
     public static Value getConditionValue(Unit unit, int unitType) {
