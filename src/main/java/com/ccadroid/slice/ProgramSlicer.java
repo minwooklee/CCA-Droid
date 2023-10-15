@@ -72,7 +72,7 @@ public class ProgramSlicer {
         }
 
         Node node = sliceMerger.getNode(nodeId);
-        String topId = (String) node.getAttribute(GROUP_ID);
+        String groupId = (String) node.getAttribute(GROUP_ID);
 
         String callerName = slicingCriterion.getCallerName();
         String targetSignature = slicingCriterion.getTargetSignature();
@@ -233,7 +233,7 @@ public class ProgramSlicer {
                         addTargetVariable(localValue, newTargetVariables);
                     }
 
-                    handleAssignInvokeUnit(unit, node, topId, signature);
+                    handleAssignInvokeUnit(unit, node, groupId, signature);
                     break;
                 }
 
@@ -276,7 +276,7 @@ public class ProgramSlicer {
                     }
 
                     String signature = getSignature(unitStr);
-                    handleAssignVariableSignatureUnit(unit, node, topId, callerName, signature);
+                    handleAssignVariableSignatureUnit(unit, node, groupId, callerName, signature);
                     break;
                 }
 
@@ -329,10 +329,10 @@ public class ProgramSlicer {
         units.removeAll(unreachableUnits);
         unitsMap.put(nodeId, units);
 
-        handleParameterUnit(node, topId, callerName, newParamNums);
+        handleParameterUnit(node, groupId, callerName, newParamNums);
 
         addTempSlicingCriteria(units);
-        sliceDatabase.insert(nodeId, topId, callerName, targetSignature, startUnitIndex, targetVariables, slice);
+        sliceDatabase.insert(nodeId, groupId, callerName, targetSignature, startUnitIndex, targetVariables, slice);
     }
 
     private int getSwitchUnitIndex(Unit unit, Set<Map.Entry<Integer, ArrayList<Unit>>> switchTargetUnitSet) {
@@ -379,7 +379,7 @@ public class ProgramSlicer {
         }
     }
 
-    private void handleAssignInvokeUnit(Unit unit, Node parent, String topId, String calleeName) {
+    private void handleAssignInvokeUnit(Unit unit, Node parent, String groupId, String calleeName) {
         int level = (int) parent.getAttribute(LEVEL);
         if (level == LOWER_LEVEL) {
             return;
@@ -390,7 +390,7 @@ public class ProgramSlicer {
         ArrayList<SlicingCriterion> slicingCriteria = slicingCriteriaGenerator.createSlicingCriteria(calleeName, "return", RETURN_VALUE, null);
         for (SlicingCriterion sc : slicingCriteria) {
             String childId = String.valueOf(sc.hashCode());
-            Node child = sliceMerger.addNode(childId, childId, topId, level);
+            Node child = sliceMerger.addNode(childId, childId, groupId, level);
             sliceMerger.addEdge(parent, child, DOWNWARD);
         }
 
@@ -398,13 +398,13 @@ public class ProgramSlicer {
         tempSlicingCriteriaMap.put(unit, tempSlicingCriteria);
     }
 
-    private void handleAssignVariableSignatureUnit(Unit unit, Node sibling, String topId, String oldCallerName, String targetSignature) {
+    private void handleAssignVariableSignatureUnit(Unit unit, Node sibling, String groupId, String oldCallerName, String targetSignature) {
         Node oldCaller = codeInspector.getNode(oldCallerName);
         int level = (int) sibling.getAttribute(LEVEL);
         String newSiblingId = String.valueOf(targetSignature.hashCode());
         Node newSibling = sliceMerger.getNode(newSiblingId);
         if (newSibling == null) {
-            newSibling = sliceMerger.addNode(newSiblingId, newSiblingId, topId, level);
+            newSibling = sliceMerger.addNode(newSiblingId, newSiblingId, groupId, level);
             sliceMerger.addEdge(sibling, newSibling, NONE);
         }
 
@@ -433,7 +433,7 @@ public class ProgramSlicer {
             ArrayList<SlicingCriterion> slicingCriteria = slicingCriteriaGenerator.createSlicingCriteria(newCallerName, targetSignature, ASSIGN, null);
             for (SlicingCriterion sc : slicingCriteria) {
                 String parentId = String.valueOf(sc.hashCode());
-                Node parent = sliceMerger.addNode(parentId, parentId, topId, level);
+                Node parent = sliceMerger.addNode(parentId, parentId, groupId, level);
                 sliceMerger.addEdge(newSibling, parent, UPWARD);
             }
 
@@ -443,7 +443,7 @@ public class ProgramSlicer {
         tempSlicingCriteriaMap.put(unit, tempSlicingCriteria);
     }
 
-    private void handleParameterUnit(Node child, String topId, String calleeName, ArrayList<String> paramNums) {
+    private void handleParameterUnit(Node child, String groupId, String calleeName, ArrayList<String> paramNums) {
         if (paramNums.isEmpty()) {
             return;
         }
@@ -465,7 +465,7 @@ public class ProgramSlicer {
             ArrayList<SlicingCriterion> slicingCriteria = slicingCriteriaGenerator.createSlicingCriteria(callerName, calleeName, INVOKE, paramNums);
             for (SlicingCriterion sc : slicingCriteria) {
                 String parentId = String.valueOf(sc.hashCode());
-                Node parent = sliceMerger.addNode(parentId, parentId, topId, level);
+                Node parent = sliceMerger.addNode(parentId, parentId, groupId, level);
                 sliceMerger.addEdge(child, parent, UPWARD);
                 deque.add(sc);
             }

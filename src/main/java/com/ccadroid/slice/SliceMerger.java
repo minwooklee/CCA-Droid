@@ -28,9 +28,9 @@ public class SliceMerger {
         return SliceMerger.Holder.instance;
     }
 
-    public Node addNode(String hashCode, String label, String topId, int level) {
+    public Node addNode(String hashCode, String label, String groupId, int level) {
         Node node = callGraph.addNode(hashCode, label);
-        node.setAttribute(GROUP_ID, topId);
+        node.setAttribute(GROUP_ID, groupId);
         node.setAttribute(LEVEL, level);
 
         return node;
@@ -77,8 +77,8 @@ public class SliceMerger {
     }
 
     private boolean isStartingParameter(ArrayList<Document> slice) {
-        Document topDoc = slice.get(0);
-        int topUnitType = topDoc.getInteger(UNIT_TYPE);
+        Document topLine = slice.get(0);
+        int topUnitType = topLine.getInteger(UNIT_TYPE);
 
         return (topUnitType == PARAMETER);
     }
