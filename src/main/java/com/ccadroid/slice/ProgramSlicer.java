@@ -26,6 +26,7 @@ public class ProgramSlicer {
     private static final int LOWER_LEVEL = Integer.parseInt(Configuration.getProperty("slice.lowerLevel"));
     private final CodeInspector codeInspector;
     private final SlicingCriteriaGenerator slicingCriteriaGenerator;
+    private final SliceInterpreter sliceInterpreter;
     private final SliceOptimizer sliceOptimizer;
     private final SliceDatabase sliceDatabase;
     private final SliceMerger sliceMerger;
@@ -37,6 +38,7 @@ public class ProgramSlicer {
     public ProgramSlicer() {
         codeInspector = CodeInspector.getInstance();
         slicingCriteriaGenerator = SlicingCriteriaGenerator.getInstance();
+        sliceInterpreter = SliceInterpreter.getInstance();
         sliceOptimizer = SliceOptimizer.getInstance();
         sliceDatabase = SliceDatabase.getInstance();
         sliceMerger = SliceMerger.getInstance();
@@ -327,6 +329,7 @@ public class ProgramSlicer {
         removeTempSlicingCriteria(unreachableUnits);
 
         units.removeAll(unreachableUnits);
+        sliceInterpreter.interpret(units, slice);
         unitsMap.put(nodeId, units);
 
         handleParameterUnit(node, groupId, callerName, newParamNums);
