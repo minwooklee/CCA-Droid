@@ -256,14 +256,16 @@ public class ProgramSlicer {
                     break;
                 }
 
-                case ASSIGN_VARIABLE_VARIABLE: {
+                case ASSIGN_VARIABLE_VARIABLE:
+                case CAST:
+                case LENGTH_OF: {
                     Value leftValue = getLeftValue(unit, unitType);
                     if (!retainVariables.contains(leftValue)) {
                         continue;
                     }
 
                     newTargetVariables.remove(leftValue);
-                    Value rightValue = getRightValue(unit, unitType);
+                    Value rightValue = (unitType == ASSIGN_VARIABLE_VARIABLE) ? getRightValue(unit, unitType) : getRightInternalValue(unit, unitType);
                     newTargetVariables.add(rightValue);
                     break;
                 }
@@ -291,19 +293,6 @@ public class ProgramSlicer {
                         continue;
                     }
 
-                    break;
-                }
-
-                case CAST:
-                case LENGTH_OF: {
-                    Value leftValue = getLeftValue(unit, unitType);
-                    if (!retainVariables.contains(leftValue)) {
-                        continue;
-                    }
-
-                    newTargetVariables.remove(leftValue);
-                    Value rightValue = getRightInternalValue(unit, unitType);
-                    newTargetVariables.add(rightValue);
                     break;
                 }
 

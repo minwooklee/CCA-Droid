@@ -134,106 +134,6 @@ public class RuleChecker {
         }
     }
 
-    private HashMap<String, LinkedHashSet<String>> findMisusedLines(Object conditions, ArrayList<Document> slices) {
-        HashMap<String, LinkedHashSet<String>> map = new HashMap<>();
-
-        if (conditions instanceof JSONObject) {
-            JSONObject obj = (JSONObject) conditions;
-
-            for (Document d : slices) {
-                List<Document> content = d.getList(CONTENT, Document.class);
-                LinkedHashSet<String> unitStrings = new LinkedHashSet<>();
-
-                if (obj.has(TARGET_SCHEME_TYPES)) {
-                    String unitStr = checkSchemeTypes(content, obj);
-                    if (unitStr != null) {
-                        unitStrings.add(unitStr);
-                    }
-                }
-
-                if (obj.has(TARGET_ALGORITHMS)) {
-                    String unitStr = checkAlgorithms(content, obj);
-                    if (unitStr != null) {
-                        unitStrings.add(unitStr);
-                    }
-                }
-
-                if (obj.has(TARGET_SIGNATURES)) {
-                    String unitStr = checkSignatures(content, obj);
-                    if (unitStr != null) {
-                        unitStrings.add(unitStr);
-                    }
-                }
-
-                if (obj.has(TARGET_CONSTANT)) {
-                    String unitStr = checkConstant(content, obj);
-                    if (unitStr != null) {
-                        unitStrings.add(unitStr);
-                    }
-
-                    LinkedHashSet<String> tempStrings = checkArray(content, obj);
-                    unitStrings.addAll(tempStrings);
-                }
-
-                if (!unitStrings.isEmpty()) {
-                    String callerName = getCallerName(d);
-                    map.put(callerName, unitStrings);
-                }
-            }
-
-            removeUnsatisfiedItems(obj, map);
-        } else {
-            JSONArray arr = (JSONArray) conditions;
-
-            for (Document d : slices) {
-                List<Document> content = d.getList(CONTENT, Document.class);
-                LinkedHashSet<String> unitStrings = new LinkedHashSet<>();
-
-                JSONObject obj1 = getObject(arr, TARGET_SCHEME_TYPES);
-                if (obj1 != null) {
-                    String unitStr = checkSchemeTypes(content, obj1);
-                    if (unitStr != null) {
-                        unitStrings.add(unitStr);
-                    }
-                }
-
-                JSONObject obj2 = getObject(arr, TARGET_ALGORITHMS);
-                if (obj2 != null) {
-                    String unitStr = checkAlgorithms(content, obj2);
-                    if (unitStr != null) {
-                        unitStrings.add(unitStr);
-                    }
-                }
-
-                JSONObject obj3 = getObject(arr, TARGET_SIGNATURES);
-                if (obj3 != null) {
-                    String unitStr = checkSignatures(content, obj3);
-                    if (unitStr != null) {
-                        unitStrings.add(unitStr);
-                    }
-                }
-
-                JSONObject obj4 = getObject(arr, TARGET_CONSTANT);
-                if (obj4 != null) {
-                    String unitStr = checkConstant(content, obj4);
-                    if (unitStr != null) {
-                        unitStrings.add(unitStr);
-                    }
-
-                    LinkedHashSet<String> tempStrings = checkArray(content, obj4);
-                    unitStrings.addAll(tempStrings);
-                }
-
-                if (!unitStrings.isEmpty()) {
-                    String callerName = getCallerName(d);
-                    map.put(callerName, unitStrings);
-                }
-            }
-        }
-
-        return map;
-    }
-
     private HashMap<JSONObject, HashMap<String, ArrayList<Document>>> classifySlices(FindIterable<Document> result) {
         HashMap<JSONObject, HashMap<String, ArrayList<Document>>> slicesMap = new HashMap<>();
 
@@ -290,16 +190,132 @@ public class RuleChecker {
         return slicesMap;
     }
 
-    private JSONObject getObject(JSONArray arr, String key) {
-        int len = arr.length();
-        for (int i = 0; i < len; i++) {
-            JSONObject obj = arr.getJSONObject(i);
-            if (obj.has(key)) {
-                return obj;
+    private HashMap<String, LinkedHashSet<String>> findMisusedLines(Object conditions, ArrayList<Document> slices) {
+        HashMap<String, LinkedHashSet<String>> map = new HashMap<>();
+
+        if (conditions instanceof JSONObject) {
+            JSONObject obj = (JSONObject) conditions;
+
+            for (Document d : slices) {
+                List<Document> content = d.getList(CONTENT, Document.class);
+                LinkedHashSet<String> unitStrings = new LinkedHashSet<>();
+
+                if (obj.has(TARGET_SCHEME_TYPES)) {
+                    String unitStr = checkSchemeTypes(content, obj);
+                    if (unitStr != null) {
+                        unitStrings.add(unitStr);
+                    }
+                }
+
+                if (obj.has(TARGET_ALGORITHMS)) {
+                    String unitStr = checkAlgorithms(content, obj);
+                    if (unitStr != null) {
+                        unitStrings.add(unitStr);
+                    }
+                }
+
+                if (obj.has(TARGET_SIGNATURES)) {
+                    String unitStr = checkSignatures(content, obj);
+                    if (unitStr != null) {
+                        unitStrings.add(unitStr);
+                    }
+                }
+
+                if (obj.has(TARGET_CONSTANT)) {
+                    String unitStr = checkConstant(content, obj);
+                    if (unitStr != null) {
+                        unitStrings.add(unitStr);
+                    }
+
+                    LinkedHashSet<String> tempStrings = checkArray(content, obj);
+                    unitStrings.addAll(tempStrings);
+                }
+
+                if (!unitStrings.isEmpty()) {
+                    String callerName = getCallerName(d);
+                    map.put(callerName, unitStrings);
+                }
+            }
+
+            removeUnsatisfiedItems(obj, map);
+        } else {
+            JSONArray arr = (JSONArray) conditions;
+
+            for (Document d : slices) {
+                List<Document> content = d.getList(CONTENT, Document.class);
+                LinkedHashSet<String> unitStrings = new LinkedHashSet<>();
+
+                Object obj1 = getValue(arr, TARGET_SCHEME_TYPES);
+                if (obj1 != null) {
+                    String unitStr = checkSchemeTypes(content, obj1);
+                    if (unitStr != null) {
+                        unitStrings.add(unitStr);
+                    }
+                }
+
+                Object obj2 = getValue(arr, TARGET_ALGORITHMS);
+                if (obj2 != null) {
+                    String unitStr = checkAlgorithms(content, obj2);
+                    if (unitStr != null) {
+                        unitStrings.add(unitStr);
+                    }
+                }
+
+                Object obj3 = getValue(arr, TARGET_SIGNATURES);
+                if (obj3 != null) {
+                    String unitStr = checkSignatures(content, obj3);
+                    if (unitStr != null) {
+                        unitStrings.add(unitStr);
+                    }
+                }
+
+                Object obj4 = getValue(arr, TARGET_CONSTANT);
+                if (obj4 != null) {
+                    String unitStr = checkConstant(content, obj4);
+                    if (unitStr != null) {
+                        unitStrings.add(unitStr);
+                    }
+
+                    LinkedHashSet<String> tempStrings = checkArray(content, obj4);
+                    unitStrings.addAll(tempStrings);
+                }
+
+                if (!unitStrings.isEmpty()) {
+                    String callerName = getCallerName(d);
+                    map.put(callerName, unitStrings);
+                }
             }
         }
 
-        return null;
+        return map;
+    }
+
+    private Document getTargetSlice(String nodeId) {
+        String query = "{'" + NODE_ID + "': '" + nodeId + "'}, {'" + GROUP_ID + "': '" + nodeId + "'}";
+        if (sliceDatabase.selectCount(query) == 0) {
+            return null;
+        }
+
+        FindIterable<Document> result = sliceDatabase.selectAll(query);
+
+        return result.first();
+    }
+
+    private void printResult(String ruleId, String description, String callerName, String targetSignature, HashMap<String, LinkedHashSet<String>> misusedLinesMap) {
+        System.out.println();
+        System.out.println("=======================================");
+        System.out.println("[*] Rule ID: " + ruleId);
+        System.out.println("[*] Description: " + description);
+        System.out.println("[*] Caller name: " + callerName);
+        System.out.println("[*] Target signature: " + targetSignature);
+        System.out.println("[*] Target lines:");
+        misusedLinesMap.forEach((key, value) -> {
+            System.out.println(key + ":");
+            for (String s : value) {
+                System.out.println(s);
+            }
+        });
+        System.out.println("=======================================");
     }
 
     private String getCallerName(Document slice) {
@@ -313,29 +329,8 @@ public class RuleChecker {
         return callerName;
     }
 
-    private void removeUnsatisfiedItems(JSONObject obj, HashMap<String, LinkedHashSet<String>> map) {
-        int count = obj.length();
-        if (obj.has(TARGET_CONSTANT_SIZE)) {
-            count--;
-        }
-
-        if (obj.has(TARGET_CONSTANT_LENGTH)) {
-            count--;
-        }
-
-        HashMap<String, LinkedHashSet<String>> tempMap = new HashMap<>(map);
-        Set<Map.Entry<String, LinkedHashSet<String>>> entries = tempMap.entrySet();
-        for (Map.Entry<String, LinkedHashSet<String>> e : entries) {
-            String callerName = e.getKey();
-            LinkedHashSet<String> unitStrings = e.getValue();
-            if ((entries.size() == 1 && count > unitStrings.size()) || (entries.size() > 1 && count > entries.size())) {
-                map.remove(callerName);
-            }
-        }
-    }
-
-    private String checkSchemeTypes(List<Document> slice, JSONObject obj) {
-        JSONArray types = obj.getJSONArray(TARGET_SCHEME_TYPES);
+    private String checkSchemeTypes(List<Document> slice, Object object) {
+        JSONArray types = ((JSONObject) object).getJSONArray(TARGET_SCHEME_TYPES);
         List<Object> typeAsList = types.toList();
 
         int sliceLen = slice.size();
@@ -404,8 +399,9 @@ public class RuleChecker {
         return null;
     }
 
-    private String checkAlgorithms(List<Document> slice, JSONObject obj) {
-        JSONArray arr = obj.getJSONArray(TARGET_ALGORITHMS);
+    private String checkAlgorithms(List<Document> slice, Object object) {
+        JSONArray arr = (object instanceof JSONObject) ? ((JSONObject) object).getJSONArray(TARGET_ALGORITHMS) : (JSONArray) object;
+
         for (Document l : slice) {
             if (!l.containsKey(CONSTANTS)) {
                 continue;
@@ -435,8 +431,8 @@ public class RuleChecker {
         return null;
     }
 
-    private String checkSignatures(List<Document> slice, JSONObject obj) {
-        JSONArray arr = obj.getJSONArray(TARGET_SIGNATURES);
+    private String checkSignatures(List<Document> slice, Object object) {
+        JSONArray arr = (object instanceof JSONObject) ? ((JSONObject) object).getJSONArray(TARGET_SIGNATURES) : (JSONArray) object;
         List<Object> arrAsList = arr.toList();
 
         for (Document l : slice) {
@@ -455,7 +451,8 @@ public class RuleChecker {
         return null;
     }
 
-    private String checkConstant(List<Document> content, JSONObject obj) {
+    private String checkConstant(List<Document> content, Object object) {
+        JSONObject obj = (JSONObject) object;
         String regex = obj.getString(TARGET_CONSTANT);
         Pattern targetPattern = Pattern.compile(regex);
         String length = obj.has(TARGET_CONSTANT_LENGTH) ? obj.getString(TARGET_CONSTANT_LENGTH) : null;
@@ -505,7 +502,8 @@ public class RuleChecker {
         return null;
     }
 
-    private LinkedHashSet<String> checkArray(List<Document> content, JSONObject obj) {
+    private LinkedHashSet<String> checkArray(List<Document> content, Object object) {
+        JSONObject obj = (JSONObject) object;
         LinkedHashSet<String> unitStrings = new LinkedHashSet<>();
 
         Document firstLine = content.get(0);
@@ -543,15 +541,52 @@ public class RuleChecker {
         return unitStrings;
     }
 
-    private Document getTargetSlice(String nodeId) {
-        String query = "{'" + NODE_ID + "': '" + nodeId + "'}, {'" + GROUP_ID + "': '" + nodeId + "'}";
-        if (sliceDatabase.selectCount(query) == 0) {
-            return null;
+    private Object getValue(Object object, String key) {
+        if (object instanceof JSONObject) {
+            JSONObject obj = (JSONObject) object;
+            if (obj.has(key)) {
+                return obj.get(key);
+            } else {
+                Set<String> keys = obj.keySet();
+                for (String k : keys) {
+                    Object value = getValue(obj.get(k), key);
+                    if (value != null) {
+                        return value;
+                    }
+                }
+            }
+        } else if (object instanceof JSONArray) {
+            JSONArray array = (JSONArray) object;
+            for (Object o : array) {
+                Object value = getValue(o, key);
+                if (value != null) {
+                    return value;
+                }
+            }
         }
 
-        FindIterable<Document> result = sliceDatabase.selectAll(query);
+        return null;
+    }
 
-        return result.first();
+    private void removeUnsatisfiedItems(JSONObject obj, HashMap<String, LinkedHashSet<String>> map) {
+        int count = obj.length();
+        if (obj.has(TARGET_CONSTANT_SIZE)) {
+            count--;
+        }
+
+        if (obj.has(TARGET_CONSTANT_LENGTH)) {
+            count--;
+        }
+
+        HashMap<String, LinkedHashSet<String>> tempMap = new HashMap<>(map);
+        Set<Map.Entry<String, LinkedHashSet<String>>> entries = tempMap.entrySet();
+        for (Map.Entry<String, LinkedHashSet<String>> e : entries) {
+            String callerName = e.getKey();
+            LinkedHashSet<String> unitStrings = e.getValue();
+            if ((entries.size() == 1 && count > unitStrings.size()) || (entries.size() > 1 && count > entries.size())) {
+                map.remove(callerName);
+            }
+        }
     }
 
     private String getTargetVariable(String unitStr) {
@@ -648,23 +683,6 @@ public class RuleChecker {
         }
 
         return key;
-    }
-
-    private void printResult(String ruleId, String description, String callerName, String targetSignature, HashMap<String, LinkedHashSet<String>> misusedLinesMap) {
-        System.out.println();
-        System.out.println("=======================================");
-        System.out.println("[*] Rule ID: " + ruleId);
-        System.out.println("[*] Description: " + description);
-        System.out.println("[*] Caller name: " + callerName);
-        System.out.println("[*] Target signature: " + targetSignature);
-        System.out.println("[*] Target lines:");
-        misusedLinesMap.forEach((key, value) -> {
-            System.out.println(key + ":");
-            for (String s : value) {
-                System.out.println(s);
-            }
-        });
-        System.out.println("=======================================");
     }
 
     private static class Holder {
