@@ -54,7 +54,7 @@ public class SlicingCriterion {
 
     @Override
     public int hashCode() {
-        return callerName.hashCode() + targetSignature.hashCode() + targetUnitIndex;
+        return callerName.hashCode() + targetSignature.hashCode() + targetUnitIndex + targetVariables.hashCode();
     }
 
     @Override

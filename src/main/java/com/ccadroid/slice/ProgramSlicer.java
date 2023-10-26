@@ -356,12 +356,16 @@ public class ProgramSlicer {
         int size = paramTypes.size();
         for (int i = 0; i < size; i++) {
             String paramType = paramTypes.get(i);
-            if (!paramType.contains("char") && !paramType.contains("String") && !paramType.contains("byte")) {
+            if (!paramType.contains("byte") && !paramType.contains("char") && !paramType.contains("String") && !paramType.contains("Object")) {
                 continue;
             }
 
             Value value = values.get(i);
-            addTargetVariable(value, newTargetVariables);
+            if (paramType.contains("Object")) {
+                newTargetVariables.add(value);
+            } else {
+                addTargetVariable(value, newTargetVariables);
+            }
         }
     }
 
@@ -470,7 +474,7 @@ public class ProgramSlicer {
         line.append(UNIT_TYPE, unitType);
         line.append(CALLER_NAME, callerName);
         line.append(LINE_NUMBER, lineNum);
-        if ((unitType & INVOKE) == INVOKE || unitType == ASSIGN_VARIABLE_CONSTANT || unitType == ASSIGN_SIGNATURE_CONSTANT) {
+        if ((unitType & INVOKE) == INVOKE || unitType == ASSIGN_VARIABLE_CONSTANT || unitType == ASSIGN_SIGNATURE_CONSTANT || unitType == RETURN_VALUE) {
             ArrayList<String> constants = getConstants(unit, unitType);
             if (!constants.isEmpty()) {
                 line.append(CONSTANTS, constants);
@@ -508,7 +512,7 @@ public class ProgramSlicer {
             int size = paramTypes.size();
             for (int i = 0; i < size; i++) {
                 String paramType = paramTypes.get(i);
-                if (!paramType.contains("int") && !paramType.contains("char") && !paramType.contains("String") && !paramType.contains("byte")) {
+                if (!paramType.contains("byte") && !paramType.contains("int") && !paramType.contains("long") && !paramType.contains("float") && !paramType.contains("double") && !paramType.contains("char") && !paramType.contains("String") && !paramType.contains("Object")) {
                     continue;
                 }
 
@@ -518,16 +522,16 @@ public class ProgramSlicer {
                     continue;
                 }
 
-                valueStr = valueStr.replace("\"", "");
-                constants.add(valueStr);
+                if (!valueStr.equals("null")) {
+                    constants.add(valueStr);
+                }
             }
-        } else if (unitType == ASSIGN_VARIABLE_CONSTANT || unitType == ASSIGN_SIGNATURE_CONSTANT) {
+        } else if (unitType == ASSIGN_VARIABLE_CONSTANT || unitType == ASSIGN_SIGNATURE_CONSTANT || unitType == RETURN_VALUE) {
             Value value = getRightValue(unit, unitType);
             if (value != null) {
                 String valueStr = convertToStr(value);
-                valueStr = valueStr.replace("\"", "");
 
-                if (!valueStr.equals("") && !valueStr.equals("null")) {
+                if (!valueStr.equals("null")) {
                     constants.add(valueStr);
                 }
             }

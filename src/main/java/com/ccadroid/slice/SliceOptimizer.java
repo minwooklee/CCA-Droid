@@ -39,11 +39,15 @@ public class SliceOptimizer {
         ArrayList<Unit> targetUnits = new ArrayList<>();
         for (int i = 0; i < wholeUnitCount; i++) {
             Unit unit = wholeUnits.get(i);
-            if (!units.contains(unit)) {
+            if (units != null && !units.contains(unit)) {
                 continue;
             }
 
             int unitType = getUnitType(unit);
+            if (unitType == -1) {
+                continue;
+            }
+
             if ((unitType & INVOKE) == INVOKE) {
                 ArrayList<Value> paramValues = getParamValues(unit, unitType);
                 if (paramValues.isEmpty()) {

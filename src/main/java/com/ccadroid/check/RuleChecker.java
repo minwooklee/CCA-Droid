@@ -410,6 +410,8 @@ public class RuleChecker {
             int size = arr.length();
             List<String> constants = l.getList(CONSTANTS, String.class);
             for (String c : constants) {
+                c = c.replace("\"", "");
+
                 for (int i = 0; i < size; i++) {
                     String algorithm = arr.getString(i);
                     Pattern pattern;
@@ -465,6 +467,11 @@ public class RuleChecker {
 
             List<String> constants = l.getList(CONSTANTS, String.class);
             for (String c : constants) {
+                c = c.replace("\"", "");
+                if (c.endsWith("f") || c.endsWith("F")) {
+                    c = String.valueOf((int) Double.parseDouble(c));
+                }
+
                 Matcher matcher = targetPattern.matcher(c);
                 if (!matcher.matches()) {
                     continue;
@@ -476,6 +483,10 @@ public class RuleChecker {
 
                 if (regex.equals(".*") && size == null && isNumber(c)) {
                     continue;
+                }
+
+                if (length != null) {
+                    c = String.valueOf(c.length());
                 }
 
                 if (size != null) {
@@ -609,7 +620,7 @@ public class RuleChecker {
         constant = constant.toLowerCase();
 
         try {
-            if (constant.contains("hmac")) {
+            if (!constant.contains("hmac")) {
                 Cipher.getInstance(constant);
             } else {
                 Mac.getInstance(constant);

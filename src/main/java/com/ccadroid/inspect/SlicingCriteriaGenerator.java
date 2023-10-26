@@ -67,13 +67,11 @@ public class SlicingCriteriaGenerator {
                 Node caller = e.getSourceNode();
                 String callerName = caller.getId();
                 ArrayList<ArrayList<String>> listOfCallers = listOfCallersMap.get(callerName);
-                if (listOfCallers != null) {
-                    continue;
+                if (listOfCallers == null) {
+                    listOfCallers = codeInspector.traverseCallers(callerName, true);
+                    setReachableCallers(packageName, appClassName, appComponents, listOfCallers);
+                    listOfCallersMap.put(callerName, listOfCallers);
                 }
-
-                listOfCallers = codeInspector.traverseCallers(callerName, true);
-                setReachableCallers(packageName, appClassName, appComponents, listOfCallers);
-                listOfCallersMap.put(callerName, listOfCallers);
 
                 ArrayList<SlicingCriterion> criteria = createSlicingCriteria(callerName, targetSignature, INVOKE, targetParamNums);
                 slicingCriteria.addAll(criteria);
