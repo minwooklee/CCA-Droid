@@ -78,8 +78,11 @@ public class SliceInterpreter {
     private void updateSlice(ArrayList<Unit> units, ArrayList<Document> slice, Value value, Unit newUnit, String oldConstant, String newConstant) {
         Unit oldUnit = valueMap.get(value);
         int index = units.indexOf(oldUnit);
-        units.set(index, newUnit);
+        if (index == -1) {
+            return;
+        }
 
+        units.set(index, newUnit);
         Document oldLine = slice.get(index);
         oldLine.put(UNIT_STRING, newUnit.toString());
 
