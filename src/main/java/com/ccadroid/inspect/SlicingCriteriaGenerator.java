@@ -163,6 +163,11 @@ public class SlicingCriteriaGenerator {
                         targetVariables.add(value);
                     }
 
+                    if (targetSignature.isEmpty()) {
+                        targetSignature = signature;
+                        targetParamNums.clear();
+                    }
+
                     break;
                 }
             }

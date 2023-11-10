@@ -207,8 +207,17 @@ public class ProgramSlicer {
                             addTargetVariable(localValue, newTargetVariables);
                         }
 
-                        ArrayList<String> paramTypes = getParamTypes(signature);
-                        addTargetVariables(paramTypes, paramValues, newTargetVariables);
+                        ArrayList<String> paramNums = new ArrayList<>();
+                        for (Value v : paramValues) {
+                            if (!newTargetVariables.contains(v)) {
+                                continue;
+                            }
+
+                            String index = String.valueOf(paramValues.indexOf(v));
+                            paramNums.add(index);
+                        }
+
+                        handleInvokeUnit(unit, node, groupId, signature, paramNums);
                     }
 
                     break;
@@ -235,7 +244,7 @@ public class ProgramSlicer {
                         addTargetVariable(localValue, newTargetVariables);
                     }
 
-                    handleAssignInvokeUnit(unit, node, groupId, signature);
+                    handleInvokeUnit(unit, node, groupId, signature, null);
                     break;
                 }
 
@@ -321,7 +330,10 @@ public class ProgramSlicer {
         sliceInterpreter.interpret(units, slice);
         unitsMap.put(nodeId, units);
 
-        handleParameterUnit(node, groupId, callerName, newParamNums);
+        ArrayList<String> targetParamNums = slicingCriterion.getTargetParamNums();
+        if (!targetParamNums.isEmpty()) { // for slicing criteria about invoke unit
+            handleParameterUnit(node, groupId, callerName, newParamNums);
+        }
 
         addTempSlicingCriteria(units);
         sliceDatabase.insert(nodeId, groupId, callerName, targetSignature, startUnitIndex, targetVariables, slice);
@@ -375,7 +387,7 @@ public class ProgramSlicer {
         }
     }
 
-    private void handleAssignInvokeUnit(Unit unit, Node parent, String groupId, String calleeName) {
+    private void handleInvokeUnit(Unit unit, Node parent, String groupId, String calleeName, ArrayList<String> paramNums) {
         int level = (int) parent.getAttribute(LEVEL);
         if (level == LOWER_LEVEL) {
             return;
@@ -383,7 +395,14 @@ public class ProgramSlicer {
             level--;
         }
 
-        ArrayList<SlicingCriterion> slicingCriteria = slicingCriteriaGenerator.createSlicingCriteria(calleeName, "return", RETURN_VALUE, null);
+        ArrayList<SlicingCriterion> slicingCriteria;
+        int unitType = getUnitType(unit);
+        if ((unitType & ASSIGN) == ASSIGN) { // for ASSIGN_INVOKE_UNIT
+            slicingCriteria = slicingCriteriaGenerator.createSlicingCriteria(calleeName, "return", RETURN_VALUE, paramNums);
+        } else {
+            slicingCriteria = slicingCriteriaGenerator.createSlicingCriteria(calleeName, "", INVOKE, paramNums);
+        }
+
         for (SlicingCriterion sc : slicingCriteria) {
             String childId = String.valueOf(sc.hashCode());
             Node child = sliceMerger.addNode(childId, childId, groupId, level);
