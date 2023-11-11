@@ -84,7 +84,8 @@ public class RuleChecker {
     }
 
     public void checkRules() {
-        FindIterable<Document> result = sliceDatabase.selectAll("{'" + NODE_ID + "': {$exists: false}, '" + GROUP_ID + "': {$exists: true}}");
+        String query = "{'" + NODE_ID + "': {$exists: false}, '" + GROUP_ID + "': {$exists: true}}";
+        FindIterable<Document> result = sliceDatabase.selectAll(query);
         HashMap<JSONObject, HashMap<String, ArrayList<Document>>> sliceMap = classifySlices(result);
         if (sliceMap.isEmpty()) {
             return;
@@ -100,63 +101,21 @@ public class RuleChecker {
         }
     }
 
-    private void checkRules(JSONObject root, HashMap<String, ArrayList<Document>> targetSlicesMap, String ruleName) {
-        if (!root.has(ruleName)) {
-            return;
-        }
-
-        JSONObject rule = root.getJSONObject(ruleName);
-        if (!rule.has(CONDITIONS)) {
-            return;
-        }
-
-        Object targetAlgorithms = null;
-        Object targetSignatures = null;
-        if (ruleName.equals(INSECURE_RULE)) {
-            JSONObject secureRule = root.getJSONObject(SECURE_RULE);
-            targetAlgorithms = getValue(secureRule, TARGET_ALGORITHMS);
-            targetSignatures = getValue(secureRule, TARGET_SIGNATURES);
-        }
-
-        Object conditions = rule.get(CONDITIONS);
-        Set<Map.Entry<String, ArrayList<Document>>> entries = targetSlicesMap.entrySet();
-        for (Map.Entry<String, ArrayList<Document>> e : entries) {
-            ArrayList<Document> slices = e.getValue();
-            HashMap<String, LinkedHashSet<String>> misusedLinesMap = findMisusedLines(conditions, targetAlgorithms, targetSignatures, slices);
-            if (misusedLinesMap.isEmpty()) {
-                continue;
-            }
-
-            String groupId = e.getKey();
-            Document targetSlice = getTargetSlice("{'" + NODE_ID + "': '" + groupId + "'}, {'" + GROUP_ID + "': '" + groupId + "'}");
-            if (targetSlice == null) {
-                continue;
-            }
-
-            String ruleId = rule.getString(RULE_ID);
-            String description = rule.getString(DESCRIPTION);
-            String callerName = targetSlice.getString(CALLER_NAME);
-            String targetSignature = targetSlice.getString(TARGET_SIGNATURE);
-
-            printResult(ruleId, description, callerName, targetSignature, misusedLinesMap);
-        }
-    }
-
-    private HashMap<JSONObject, HashMap<String, ArrayList<Document>>> classifySlices(FindIterable<Document> result) {
+    private HashMap<JSONObject, HashMap<String, ArrayList<Document>>> classifySlices(FindIterable<Document> result1) {
         HashMap<JSONObject, HashMap<String, ArrayList<Document>>> slicesMap = new HashMap<>();
 
-        for (Document s : result) {
-            String groupId = s.getString(GROUP_ID);
-            String targetSignature = s.getString(TARGET_SIGNATURE);
-            List<String> targetParamNums = s.getList(TARGET_PARAM_NUMS, String.class);
+        for (Document r1 : result1) {
+            String groupId = r1.getString(GROUP_ID);
+            String targetSignature = r1.getString(TARGET_SIGNATURE);
+            List<String> targetParamNums = r1.getList(TARGET_PARAM_NUMS, String.class);
             String targetParamNumStr = targetParamNums.toString();
 
-            for (JSONObject r : rules) {
-                HashMap<String, ArrayList<Document>> map = slicesMap.containsKey(r) ? slicesMap.get(r) : new HashMap<>();
+            for (JSONObject o : rules) {
+                HashMap<String, ArrayList<Document>> map = slicesMap.containsKey(o) ? slicesMap.get(o) : new HashMap<>();
                 ArrayList<Document> targetSlices = new ArrayList<>();
                 HashSet<Document> tempSlice = new HashSet<>();
 
-                JSONObject obj = r.getJSONObject(SLICING_SIGNATURES);
+                JSONObject obj = o.getJSONObject(SLICING_SIGNATURES);
                 Map<String, Object> objAsMap = obj.toMap();
                 Set<Map.Entry<String, Object>> entries = objAsMap.entrySet();
                 for (Map.Entry<String, Object> e : entries) {
@@ -171,10 +130,11 @@ public class RuleChecker {
                         continue;
                     }
 
-                    FindIterable<Document> slices = sliceDatabase.selectAll("{'" + GROUP_ID + "': '" + groupId + "'}");
-                    slices.sort(Sorts.descending("_id"));
-                    for (Document d : slices) {
-                        List<Document> content = d.getList(CONTENT, Document.class);
+                    String query = "{'" + GROUP_ID + "': '" + groupId + "'}";
+                    FindIterable<Document> result2 = sliceDatabase.selectAll(query);
+                    result2.sort(Sorts.descending("_id"));
+                    for (Document r2 : result2) {
+                        List<Document> content = r2.getList(CONTENT, Document.class);
                         if (tempSlice.containsAll(content)) {
                             continue;
                         }
@@ -185,13 +145,13 @@ public class RuleChecker {
                         }
 
                         tempSlice.addAll(content);
-                        targetSlices.add(d);
+                        targetSlices.add(r2);
                     }
 
                     map.put(groupId, targetSlices);
                 }
 
-                slicesMap.put(r, map);
+                slicesMap.put(o, map);
             }
         }
 
@@ -204,8 +164,8 @@ public class RuleChecker {
         if (conditions instanceof JSONObject) {
             JSONObject obj = (JSONObject) conditions;
 
-            for (Document d : slices) {
-                List<Document> content = d.getList(CONTENT, Document.class);
+            for (Document s : slices) {
+                List<Document> content = s.getList(CONTENT, Document.class);
                 LinkedHashSet<String> unitStrings = new LinkedHashSet<>();
 
                 if (obj.has(TARGET_SCHEME_TYPES)) {
@@ -242,7 +202,7 @@ public class RuleChecker {
                 }
 
                 if (!unitStrings.isEmpty()) {
-                    String callerName = getCallerName(d);
+                    String callerName = getCallerName(s);
                     map.put(callerName, unitStrings);
                 }
             }
@@ -251,8 +211,8 @@ public class RuleChecker {
         } else {
             JSONArray arr = (JSONArray) conditions;
 
-            for (Document d : slices) {
-                List<Document> content = d.getList(CONTENT, Document.class);
+            for (Document s : slices) {
+                List<Document> content = s.getList(CONTENT, Document.class);
                 LinkedHashSet<String> unitStrings = new LinkedHashSet<>();
 
                 Object obj1 = getValue(arr, TARGET_SCHEME_TYPES);
@@ -293,7 +253,7 @@ public class RuleChecker {
                 }
 
                 if (!unitStrings.isEmpty()) {
-                    String callerName = getCallerName(d);
+                    String callerName = getCallerName(s);
                     map.put(callerName, unitStrings);
                 }
             }
@@ -302,36 +262,47 @@ public class RuleChecker {
         return map;
     }
 
-    private Document getTargetSlice(String query) {
-        return (sliceDatabase.selectCount(query) == 0) ? null : sliceDatabase.selectAll(query).first();
-    }
-
-    private void printResult(String ruleId, String description, String callerName, String targetSignature, HashMap<String, LinkedHashSet<String>> misusedLinesMap) {
-        System.out.println();
-        System.out.println("=======================================");
-        System.out.println("[*] Rule ID: " + ruleId);
-        System.out.println("[*] Description: " + description);
-        System.out.println("[*] Caller name: " + callerName);
-        System.out.println("[*] Target signature: " + targetSignature);
-        System.out.println("[*] Target lines:");
-        misusedLinesMap.forEach((key, value) -> {
-            System.out.println(key + ":");
-            for (String s : value) {
-                System.out.println(s);
-            }
-        });
-        System.out.println("=======================================");
-    }
-
-    private String getCallerName(Document slice) {
-        String callerName = slice.getString(CALLER_NAME);
-        if (callerName == null) {
-            String groupId = slice.getString(GROUP_ID);
-            Document targetSlice = getTargetSlice("{'" + NODE_ID + "': '" + groupId + "'}, {'" + GROUP_ID + "': '" + groupId + "'}");
-            callerName = targetSlice != null ? targetSlice.getString(CALLER_NAME) : null;
+    private void checkRules(JSONObject root, HashMap<String, ArrayList<Document>> targetSlicesMap, String ruleName) {
+        if (!root.has(ruleName)) {
+            return;
         }
 
-        return callerName;
+        JSONObject rule = root.getJSONObject(ruleName);
+        if (!rule.has(CONDITIONS)) {
+            return;
+        }
+
+        Object targetAlgorithms = null;
+        Object targetSignatures = null;
+        if (ruleName.equals(INSECURE_RULE)) {
+            JSONObject secureRule = root.getJSONObject(SECURE_RULE);
+            targetAlgorithms = getValue(secureRule, TARGET_ALGORITHMS);
+            targetSignatures = getValue(secureRule, TARGET_SIGNATURES);
+        }
+
+        Object conditions = rule.get(CONDITIONS);
+        Set<Map.Entry<String, ArrayList<Document>>> entries = targetSlicesMap.entrySet();
+        for (Map.Entry<String, ArrayList<Document>> e : entries) {
+            ArrayList<Document> slices = e.getValue();
+            HashMap<String, LinkedHashSet<String>> misusedLinesMap = findMisusedLines(conditions, targetAlgorithms, targetSignatures, slices);
+            if (misusedLinesMap.isEmpty()) {
+                continue;
+            }
+
+            String groupId = e.getKey();
+            String query = "{'" + NODE_ID + "': '" + groupId + "'}, {'" + GROUP_ID + "': '" + groupId + "'}";
+            Document targetSlice = getTargetSlice(query);
+            if (targetSlice == null) {
+                continue;
+            }
+
+            String ruleId = rule.getString(RULE_ID);
+            String description = rule.getString(DESCRIPTION);
+            String callerName = targetSlice.getString(CALLER_NAME);
+            String targetSignature = targetSlice.getString(TARGET_SIGNATURE);
+
+            printResult(ruleId, description, callerName, targetSignature, misusedLinesMap);
+        }
     }
 
     private String checkSchemeTypes(List<Document> slice, Object object) {
@@ -408,25 +379,25 @@ public class RuleChecker {
         return null;
     }
 
-    private String checkAlgorithms(List<Document> slice, Object object, Object targetAlgorithms) {
-        String oldUnitStr = checkAlgorithms(slice, object);
+    private String checkAlgorithms(List<Document> content, Object object, Object targetAlgorithms) {
+        String oldUnitStr = checkAlgorithms(content, object);
         if (targetAlgorithms == null) {
             return oldUnitStr;
         }
 
-        String newUnitStr = checkAlgorithms(slice, targetAlgorithms);
+        String newUnitStr = checkAlgorithms(content, targetAlgorithms);
 
-        return findLateUnitString(slice, oldUnitStr, newUnitStr);
+        return findLateUnitString(content, oldUnitStr, newUnitStr);
     }
 
-    private String checkAlgorithms(List<Document> slice, Object object) {
+    private String checkAlgorithms(List<Document> content, Object object) {
         if (object == null) {
             return null;
         }
 
         JSONArray arr = (object instanceof JSONObject) ? ((JSONObject) object).getJSONArray(TARGET_ALGORITHMS) : (JSONArray) object;
 
-        for (Document l : slice) {
+        for (Document l : content) {
             if (!l.containsKey(CONSTANTS)) {
                 continue;
             }
@@ -460,40 +431,7 @@ public class RuleChecker {
         return null;
     }
 
-    private String findSecureUnitString(List<Document> slice, Object targetSignatures) {
-        String targetUnitStr = checkSignatures(slice, targetSignatures);
-        if (targetUnitStr != null) {
-            return targetUnitStr;
-        }
-
-        for (Document l : slice) {
-            int unitType = l.getInteger(UNIT_TYPE);
-            if ((unitType & INVOKE) != INVOKE) {
-                continue;
-            }
-
-            String unitStr = l.getString(UNIT_STRING);
-            String signature = getSignature(unitStr);
-            String query = "{'" + CALLER_NAME + "': '" + signature + "'}";
-            Document targetSlice = getTargetSlice(query);
-            if (targetSlice == null) {
-                continue;
-            }
-
-            List<Document> content = targetSlice.getList(CONTENT, Document.class);
-            targetUnitStr = checkSignatures(content, targetSignatures);
-            if (targetUnitStr == null) {
-                continue;
-            }
-
-            targetUnitStr = unitStr;
-            break;
-        }
-
-        return targetUnitStr;
-    }
-
-    private String checkSignatures(List<Document> slice, Object object) {
+    private String checkSignatures(List<Document> content, Object object) {
         if (object == null) {
             return null;
         }
@@ -501,7 +439,7 @@ public class RuleChecker {
         JSONArray arr = (object instanceof JSONObject) ? ((JSONObject) object).getJSONArray(TARGET_SIGNATURES) : (JSONArray) object;
         List<Object> arrAsList = arr.toList();
 
-        for (Document l : slice) {
+        for (Document l : content) {
             int unitType = l.getInteger(UNIT_TYPE);
             if ((unitType & INVOKE) != INVOKE) {
                 continue;
@@ -517,25 +455,15 @@ public class RuleChecker {
         return null;
     }
 
-    private String checkConstant(List<Document> slice, Object object, Object targetSignatures) {
-        String oldUnitStr = checkConstant(slice, object);
+    private String checkConstant(List<Document> content, Object object, Object targetSignatures) {
+        String oldUnitStr = checkConstant(content, object);
         if (targetSignatures == null) {
             return oldUnitStr;
         }
 
-        String newUnitStr = findSecureUnitString(slice, targetSignatures);
+        String newUnitStr = findSecureUnitString(content, targetSignatures);
 
-        return findLateUnitString(slice, oldUnitStr, newUnitStr);
-    }
-
-    private String findLateUnitString(List<Document> slice, String unitStr1, String unitStr2) {
-        Document line1 = findLine(slice, unitStr1);
-        Document line2 = findLine(slice, unitStr2);
-        if (line1 == null || line2 == null) {
-            return unitStr1;
-        }
-
-        return line1.getString(CALLER_NAME).equals(line2.getString(CALLER_NAME)) && line1.getInteger(LINE_NUMBER) < line2.getInteger(LINE_NUMBER) ? null : unitStr1;
+        return findLateUnitString(content, oldUnitStr, newUnitStr);
     }
 
     private String checkConstant(List<Document> content, Object object) {
@@ -602,20 +530,24 @@ public class RuleChecker {
         return null;
     }
 
-    private LinkedHashSet<String> checkArray(List<Document> slice, Object object, Object targetSignatures) {
-        LinkedHashSet<String> oldUnitStrings = checkArray(slice, object);
-        if (oldUnitStrings.isEmpty() || targetSignatures == null) {
+    private LinkedHashSet<String> checkArray(List<Document> content, Object object, Object targetSignatures) {
+        LinkedHashSet<String> oldUnitStrings = checkArray(content, object);
+        if (oldUnitStrings.isEmpty()) {
+            return oldUnitStrings;
+        }
+
+        if (targetSignatures == null) {
             return oldUnitStrings;
         }
 
         String oldUnitStr = new ArrayList<>(oldUnitStrings).get(0);
-        String newUnitStr = findSecureUnitString(slice, targetSignatures);
+        String newUnitStr = findSecureUnitString(content, targetSignatures);
         LinkedHashSet<String> newUnitStrings = new LinkedHashSet<>();
         if (newUnitStr != null) {
             newUnitStrings.add(newUnitStr);
         }
 
-        return findLateUnitString(slice, oldUnitStr, newUnitStr) == null ? null : newUnitStrings;
+        return findLateUnitString(content, oldUnitStr, newUnitStr) == null ? null : newUnitStrings;
     }
 
     private LinkedHashSet<String> checkArray(List<Document> content, Object object) {
@@ -688,19 +620,16 @@ public class RuleChecker {
         return null;
     }
 
-    private Document findLine(List<Document> slice, String targetUnitStr) {
-        if (targetUnitStr == null) {
-            return null;
+    private String getCallerName(Document slice) {
+        String callerName = slice.getString(CALLER_NAME);
+        if (callerName == null) {
+            String groupId = slice.getString(GROUP_ID);
+            String query = "{'" + NODE_ID + "': '" + groupId + "'}, {'" + GROUP_ID + "': '" + groupId + "'}";
+            Document targetSlice = getTargetSlice(query);
+            callerName = targetSlice != null ? targetSlice.getString(CALLER_NAME) : null;
         }
 
-        for (Document l : slice) {
-            String unitStr = l.getString(UNIT_STRING);
-            if (unitStr.contains(targetUnitStr)) {
-                return l;
-            }
-        }
-
-        return null;
+        return callerName;
     }
 
     private void removeUnsatisfiedItems(JSONObject obj, HashMap<String, LinkedHashSet<String>> map) {
@@ -724,6 +653,27 @@ public class RuleChecker {
         }
     }
 
+    private Document getTargetSlice(String query) {
+        return (sliceDatabase.selectCount(query) == 0) ? null : sliceDatabase.selectAll(query).first();
+    }
+
+    private void printResult(String ruleId, String description, String callerName, String targetSignature, HashMap<String, LinkedHashSet<String>> misusedLinesMap) {
+        System.out.println();
+        System.out.println("=======================================");
+        System.out.println("[*] Rule ID: " + ruleId);
+        System.out.println("[*] Description: " + description);
+        System.out.println("[*] Caller name: " + callerName);
+        System.out.println("[*] Target signature: " + targetSignature);
+        System.out.println("[*] Target lines:");
+        misusedLinesMap.forEach((key, value) -> {
+            System.out.println(key + ":");
+            for (String s : value) {
+                System.out.println(s);
+            }
+        });
+        System.out.println("=======================================");
+    }
+
     private String getTargetVariable(String unitStr) {
         String variable = null;
 
@@ -738,6 +688,64 @@ public class RuleChecker {
         }
 
         return variable;
+    }
+
+    private String findLateUnitString(List<Document> slice, String unitStr1, String unitStr2) {
+        Document line1 = findLine(slice, unitStr1);
+        Document line2 = findLine(slice, unitStr2);
+        if (line1 == null || line2 == null) {
+            return unitStr1;
+        }
+
+        return line1.getString(CALLER_NAME).equals(line2.getString(CALLER_NAME)) && line1.getInteger(LINE_NUMBER) < line2.getInteger(LINE_NUMBER) ? null : unitStr1;
+    }
+
+    private Document findLine(List<Document> slice, String targetUnitStr) {
+        if (targetUnitStr == null) {
+            return null;
+        }
+
+        for (Document l : slice) {
+            String unitStr = l.getString(UNIT_STRING);
+            if (unitStr.contains(targetUnitStr)) {
+                return l;
+            }
+        }
+
+        return null;
+    }
+
+    private String findSecureUnitString(List<Document> slice, Object targetSignatures) {
+        String targetUnitStr = checkSignatures(slice, targetSignatures);
+        if (targetUnitStr != null) {
+            return targetUnitStr;
+        }
+
+        for (Document l : slice) {
+            int unitType = l.getInteger(UNIT_TYPE);
+            if ((unitType & INVOKE) != INVOKE) {
+                continue;
+            }
+
+            String unitStr = l.getString(UNIT_STRING);
+            String signature = getSignature(unitStr);
+            String query = "{'" + CALLER_NAME + "': '" + signature + "'}";
+            Document targetSlice = getTargetSlice(query);
+            if (targetSlice == null) {
+                continue;
+            }
+
+            List<Document> content = targetSlice.getList(CONTENT, Document.class);
+            targetUnitStr = checkSignatures(content, targetSignatures);
+            if (targetUnitStr == null) {
+                continue;
+            }
+
+            targetUnitStr = unitStr;
+            break;
+        }
+
+        return targetUnitStr;
     }
 
     private boolean isAlgorithm(String constant) {

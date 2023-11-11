@@ -46,26 +46,27 @@ public class SliceDatabase {
         collection.insertOne(document);
     }
 
-    public FindIterable<Document> selectAll(String json) {
-        Document query = Document.parse(json);
+    public FindIterable<Document> selectAll(String query) {
+        Document filter = Document.parse(query);
 
-        return collection.find(query);
+        return collection.find(filter);
     }
 
-    public int selectCount(String json) {
-        Document query = Document.parse(json);
+    public int selectCount(String query) {
+        Document filer = Document.parse(query);
 
-        return (int) collection.countDocuments(query);
+        return (int) collection.countDocuments(filer);
     }
 
-    public void findOneAndUpdate(String json, Document newDocument) {
-        Document query = Document.parse(json);
+    public void findOneAndUpdate(String query, Document newDocument) {
+        Document filter = Document.parse(query);
 
-        collection.findOneAndReplace(query, newDocument);
+        collection.findOneAndReplace(filter, newDocument);
     }
 
     public ArrayList<Document> getSlice(String id) {
-        FindIterable<Document> result = selectAll("{'" + NODE_ID + "': '" + id + "'}");
+        String query = "{'" + NODE_ID + "': '" + id + "'}";
+        FindIterable<Document> result = selectAll(query);
         Document document = result.first();
         if (document == null) {
             return new ArrayList<>();
