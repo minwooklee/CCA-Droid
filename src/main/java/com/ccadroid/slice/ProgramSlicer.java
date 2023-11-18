@@ -207,17 +207,7 @@ public class ProgramSlicer {
                             addTargetVariable(localValue, newTargetVariables);
                         }
 
-                        ArrayList<String> paramNums = new ArrayList<>();
-                        for (Value v : paramValues) {
-                            if (!newTargetVariables.contains(v)) {
-                                continue;
-                            }
-
-                            String index = String.valueOf(paramValues.indexOf(v));
-                            paramNums.add(index);
-                        }
-
-                        handleInvokeUnit(unit, node, groupId, signature, paramNums);
+                        handleInvokeUnit(unit, node, groupId, signature);
                     }
 
                     break;
@@ -244,7 +234,7 @@ public class ProgramSlicer {
                         addTargetVariable(localValue, newTargetVariables);
                     }
 
-                    handleInvokeUnit(unit, node, groupId, signature, null);
+                    handleInvokeUnit(unit, node, groupId, signature);
                     break;
                 }
 
@@ -331,7 +321,7 @@ public class ProgramSlicer {
         unitsMap.put(nodeId, units);
 
         ArrayList<String> targetParamNums = slicingCriterion.getTargetParamNums();
-        if (!targetParamNums.isEmpty()) { // for slicing criteria about invoke unit
+        if (targetParamNums == null || !targetParamNums.isEmpty()) {
             handleParameterUnit(node, groupId, callerName, newParamNums);
         }
 
@@ -387,7 +377,7 @@ public class ProgramSlicer {
         }
     }
 
-    private void handleInvokeUnit(Unit unit, Node parent, String groupId, String calleeName, ArrayList<String> paramNums) {
+    private void handleInvokeUnit(Unit unit, Node parent, String groupId, String calleeName) {
         int level = (int) parent.getAttribute(LEVEL);
         if (level == LOWER_LEVEL) {
             return;
@@ -396,6 +386,8 @@ public class ProgramSlicer {
         }
 
         ArrayList<SlicingCriterion> slicingCriteria;
+        ArrayList<String> paramNums = new ArrayList<>();
+
         int unitType = getUnitType(unit);
         if ((unitType & ASSIGN) == ASSIGN) { // for ASSIGN_INVOKE_UNIT
             slicingCriteria = slicingCriteriaGenerator.createSlicingCriteria(calleeName, "return", RETURN_VALUE, paramNums);
@@ -549,8 +541,7 @@ public class ProgramSlicer {
             Value value = getRightValue(unit, unitType);
             if (value != null) {
                 String valueStr = convertToStr(value);
-
-                if (!valueStr.equals("null")) {
+                if (!isVariableStr(valueStr) && !valueStr.equals("null")) {
                     constants.add(valueStr);
                 }
             }
