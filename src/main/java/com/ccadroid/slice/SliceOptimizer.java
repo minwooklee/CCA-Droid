@@ -27,18 +27,45 @@ public class SliceOptimizer {
         return SliceOptimizer.Holder.instance;
     }
 
-    public ArrayList<Unit> getUnreachableUnits(ArrayList<Unit> wholeUnits, ArrayList<Unit> units) {
+    public ArrayList<Unit> getUnreachableUnits(ArrayList<Unit> wholeUnit, ArrayList<Unit> units) {
         HashMap<Value, String> targetValueMap = new HashMap<>();
 
-        return getUnreachableUnits(wholeUnits, units, null, targetValueMap);
+        return getUnreachableUnits(wholeUnit, units, null, targetValueMap);
     }
 
-    public ArrayList<Unit> getUnreachableUnits(ArrayList<Unit> wholeUnits, ArrayList<Unit> units, String targetSignature, HashMap<Value, String> targetValueMap) {
-        int wholeUnitCount = wholeUnits.size();
+    public ArrayList<String> getUnreachableUnitStrings(ArrayList<String> ids) {
+        if (slicer == null) {
+            slicer = ProgramSlicer.getInstance();
+        }
+
+        HashMap<Value, String> targetValueMap = new HashMap<>();
+        String targetSignature;
+        ArrayList<String> targetUnitStrings = new ArrayList<>();
+
+        for (int i = 0; i < ids.size(); i++) {
+            String nodeId = ids.get(i);
+            SlicingCriterion slicingCriterion = slicingCriteriaGenerator.getSlicingCriterion(nodeId);
+            targetSignature = (i == 0) ? slicingCriterion.getTargetStatement() : slicingCriterion.getCallerName();
+            String signature = slicingCriterion.getCallerName();
+            ArrayList<Unit> wholeUnit = codeInspector.getWholeUnit(signature);
+            ArrayList<Unit> units = slicer.getUnits(nodeId);
+
+            ArrayList<Unit> unreachableUnits = getUnreachableUnits(wholeUnit, units, targetSignature, targetValueMap);
+            for (Unit u : unreachableUnits) {
+                String unitStr = u.toString();
+                targetUnitStrings.add(unitStr);
+            }
+        }
+
+        return targetUnitStrings;
+    }
+
+    private ArrayList<Unit> getUnreachableUnits(ArrayList<Unit> wholeUnit, ArrayList<Unit> units, String targetSignature, HashMap<Value, String> targetValueMap) {
+        int wholeUnitCount = wholeUnit.size();
 
         ArrayList<Unit> targetUnits = new ArrayList<>();
         for (int i = 0; i < wholeUnitCount; i++) {
-            Unit unit = wholeUnits.get(i);
+            Unit unit = wholeUnit.get(i);
             if (units != null && !units.contains(unit)) {
                 continue;
             }
@@ -78,7 +105,7 @@ public class SliceOptimizer {
                 targetValueMap.put(rightValue, targetValueMap.remove(leftValue));
             } else if (unitType == PARAMETER) {
                 String unitStr = unit.toString();
-                String paramNum = getParamNum(unitStr, unitType);
+                String paramNum = getParamNumber(unitStr, unitType);
                 int n = Integer.parseInt(paramNum);
                 Value v = IntConstant.v(n);
                 if (!targetValueMap.containsKey(v)) {
@@ -94,12 +121,12 @@ public class SliceOptimizer {
                 }
 
                 Unit targetUnit1 = getTargetUnit(unit, unitType);
-                int targetUnitIndex1 = wholeUnits.indexOf(targetUnit1);
-                Unit prevUnit = wholeUnits.get(targetUnitIndex1 - 1);
-                int gotoUnitIndex = wholeUnits.indexOf(prevUnit);
+                int targetUnitIndex1 = wholeUnit.indexOf(targetUnit1);
+                Unit prevUnit = wholeUnit.get(targetUnitIndex1 - 1);
+                int gotoUnitIndex = wholeUnit.indexOf(prevUnit);
                 if (result == 1) {
                     for (int j = i + 1; j < gotoUnitIndex; j++) {
-                        Unit u = wholeUnits.get(j);
+                        Unit u = wholeUnit.get(j);
                         targetUnits.add(u);
                     }
 
@@ -111,9 +138,9 @@ public class SliceOptimizer {
                         continue;
                     }
 
-                    int targetUnitIndex2 = wholeUnits.indexOf(targetUnit2);
+                    int targetUnitIndex2 = wholeUnit.indexOf(targetUnit2);
                     for (int j = gotoUnitIndex + 1; j <= targetUnitIndex2; j++) {
-                        Unit u = wholeUnits.get(j);
+                        Unit u = wholeUnit.get(j);
                         targetUnits.add(u);
                     }
 
@@ -123,33 +150,6 @@ public class SliceOptimizer {
         }
 
         return targetUnits;
-    }
-
-    public ArrayList<String> getUnreachableUnitStrings(ArrayList<String> ids) {
-        if (slicer == null) {
-            slicer = ProgramSlicer.getInstance();
-        }
-
-        HashMap<Value, String> targetValueMap = new HashMap<>();
-        String targetSignature;
-        ArrayList<String> targetUnitStrings = new ArrayList<>();
-
-        for (int i = 0; i < ids.size(); i++) {
-            String nodeId = ids.get(i);
-            SlicingCriterion slicingCriterion = slicingCriteriaGenerator.getSlicingCriterion(nodeId);
-            targetSignature = (i == 0) ? slicingCriterion.getTargetSignature() : slicingCriterion.getCallerName();
-            String signature = slicingCriterion.getCallerName();
-            ArrayList<Unit> wholeUnits = codeInspector.getWholeUnits(signature);
-            ArrayList<Unit> units = slicer.getUnits(nodeId);
-
-            ArrayList<Unit> unreachableUnits = getUnreachableUnits(wholeUnits, units, targetSignature, targetValueMap);
-            for (Unit u : unreachableUnits) {
-                String unitStr = u.toString();
-                targetUnitStrings.add(unitStr);
-            }
-        }
-
-        return targetUnitStrings;
     }
 
     private int getIfStatementResult(Unit unit, int unitType, HashMap<Value, String> targetValueMap) {

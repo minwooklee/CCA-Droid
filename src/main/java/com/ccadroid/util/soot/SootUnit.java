@@ -296,6 +296,16 @@ public class SootUnit {
         return value;
     }
 
+    public static ArrayList<String> convertToStrings(ArrayList<Value> values) {
+        ArrayList<String> strings = new ArrayList<>();
+        for (Value v : values) {
+            String s = convertToStr(v);
+            strings.add(s);
+        }
+
+        return strings;
+    }
+
     public static String convertToStr(Value value) {
         return (value == null) ? "null" : value.toString();
     }
@@ -310,7 +320,7 @@ public class SootUnit {
         return matcher.matches();
     }
 
-    public static String getParamNum(String unitStr, int unitType) {
+    public static String getParamNumber(String unitStr, int unitType) {
         if (unitType != PARAMETER) {
             return "-1";
         }

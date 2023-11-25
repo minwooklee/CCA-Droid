@@ -23,25 +23,26 @@ public class SliceDatabase {
         collection = database.getCollection(packageName);
     }
 
-    public void insert(String nodeId, String groupId, String callerName, String targetSignature, int startUnitIndex, ArrayList<String> targetVariables, ArrayList<Document> slice) {
+    public void insert(String nodeId, String groupId, String callerName, String targetStatement, int startUnitIndex, ArrayList<String> targetVariables, ArrayList<Document> content) {
         Document document = new Document();
         document.append(NODE_ID, nodeId);
         document.append(GROUP_ID, groupId);
         document.append(CALLER_NAME, callerName);
-        document.append(TARGET_SIGNATURE, targetSignature);
+        document.append(TARGET_STATEMENT, targetStatement);
         document.append(START_UNIT_INDEX, startUnitIndex);
         document.append(TARGET_VARIABLES, targetVariables);
-        document.append(CONTENT, slice);
+        document.append(CONTENT, content);
 
         collection.insertOne(document);
     }
 
-    public void insert(String id, String targetSignature, ArrayList<String> targetParamNums, ArrayList<Document> slice) {
+    public void insert(String id, String targetStatement, ArrayList<String> targetParamNumbers, ArrayList<String> targetVariables, ArrayList<Document> content) {
         Document document = new Document();
         document.append(GROUP_ID, id);
-        document.append(TARGET_SIGNATURE, targetSignature);
-        document.append(TARGET_PARAM_NUMS, targetParamNums);
-        document.append(CONTENT, slice);
+        document.append(TARGET_STATEMENT, targetStatement);
+        document.append(TARGET_PARAM_NUMBERS, targetParamNumbers);
+        document.append(TARGET_VARIABLES, targetVariables);
+        document.append(CONTENT, content);
 
         collection.insertOne(document);
     }
@@ -52,32 +53,13 @@ public class SliceDatabase {
         return collection.find(filter);
     }
 
-    public int selectCount(String query) {
-        Document filer = Document.parse(query);
-
-        return (int) collection.countDocuments(filer);
-    }
-
-    public void findOneAndUpdate(String query, Document newDocument) {
-        Document filter = Document.parse(query);
-
-        collection.findOneAndReplace(filter, newDocument);
-    }
-
-    public ArrayList<Document> getSlice(String id) {
-        String query = "{'" + NODE_ID + "': '" + id + "'}";
+    public Document findSlice(String query) {
         FindIterable<Document> result = selectAll(query);
-        Document document = result.first();
-        if (document == null) {
-            return new ArrayList<>();
+        if (result == null) {
+            return null;
         }
 
-        Object o = document.get(CONTENT);
-        if (!(o instanceof ArrayList)) {
-            return new ArrayList<>();
-        }
-
-        return (ArrayList<Document>) document.getList(CONTENT, Document.class);
+        return result.first();
     }
 
     private static class Holder {

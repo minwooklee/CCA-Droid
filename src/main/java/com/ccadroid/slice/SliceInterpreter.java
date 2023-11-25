@@ -54,13 +54,14 @@ public class SliceInterpreter {
                     Value rightValue = getRightValue(targetUnit, targetUnitType);
                     String rightValueStr = convertToStr(rightValue);
                     ArrayList<String> paramValues = getParamValues(unitStr);
+                    String oldChar = paramValues.get(0);
+                    String newChar = paramValues.get(1);
 
-                    String newStr = replaceString(rightValueStr, paramValues.get(0), paramValues.get(1));
-                    Value newValue = StringConstant.v(newStr);
+                    String newValueStr = replaceString(rightValueStr, oldChar, newChar);
+                    Value newValue = StringConstant.v(newValueStr);
                     Unit newUnit = new JAssignStmt(localValue, newValue);
 
-                    updateSlice(units, slice, localValue, newUnit, rightValueStr, newStr);
-                    slice.remove(line);
+                    updateLine(units, slice, localValue, newUnit, rightValueStr, newValueStr);
                 }
             }
         }
@@ -75,24 +76,26 @@ public class SliceInterpreter {
         return target;
     }
 
-    private void updateSlice(ArrayList<Unit> units, ArrayList<Document> slice, Value value, Unit newUnit, String oldConstant, String newConstant) {
-        Unit oldUnit = valueMap.get(value);
-        int index = units.indexOf(oldUnit);
-        if (index == -1) {
+    private void updateLine(ArrayList<Unit> units, ArrayList<Document> slice, Value value, Unit newUnit, String oldConstant, String newConstant) {
+        Unit unit = valueMap.get(value);
+        int unitIndex = units.indexOf(unit);
+        if (unitIndex == -1) {
             return;
         }
 
-        units.set(index, newUnit);
-        Document oldLine = slice.get(index);
-        oldLine.put(UNIT_STRING, newUnit.toString());
+        units.set(unitIndex, newUnit);
+        Document line = slice.get(unitIndex);
+        line.put(UNIT_STRING, newUnit.toString());
 
-        List<String> constants = oldLine.getList(CONSTANTS, String.class);
+        List<String> constants = line.getList(CONSTANTS, String.class);
         if (constants == null) {
             return;
         }
 
-        constants.set(constants.indexOf(oldConstant), newConstant);
-        oldLine.put(CONSTANTS, constants);
+        int constantIndex = constants.indexOf(oldConstant);
+        constants.set(constantIndex, newConstant);
+        line.put(CONSTANTS, constants);
+        slice.remove(line);
     }
 
     private static class Holder {

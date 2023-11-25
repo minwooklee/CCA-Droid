@@ -3,25 +3,27 @@ package com.ccadroid.slice;
 import com.ccadroid.inspect.SlicingCriterion;
 import com.ccadroid.util.graph.BaseGraph;
 import com.ccadroid.util.graph.CallGraph;
-import com.mongodb.client.FindIterable;
 import org.bson.Document;
 import org.graphstream.graph.Node;
 
 import java.util.ArrayList;
+import java.util.List;
 
 import static com.ccadroid.slice.SliceConstants.*;
 import static com.ccadroid.util.graph.CallGraph.LEVEL;
 import static com.ccadroid.util.soot.SootUnit.PARAMETER;
+import static com.ccadroid.util.soot.SootUnit.convertToStrings;
 
 public class SliceMerger {
-    private final CallGraph callGraph;
     private final SliceDatabase sliceDatabase;
     private final SliceOptimizer sliceOptimizer;
+    private final CallGraph callGraph;
 
     public SliceMerger() {
-        callGraph = new CallGraph();
         sliceDatabase = SliceDatabase.getInstance();
         sliceOptimizer = SliceOptimizer.getInstance();
+
+        callGraph = new CallGraph();
     }
 
     public static SliceMerger getInstance() {
@@ -46,33 +48,43 @@ public class SliceMerger {
 
     public void mergeSlices(SlicingCriterion slicingCriterion) {
         String leafId = String.valueOf(slicingCriterion.hashCode());
-        if (sliceDatabase.selectCount("{'" + NODE_ID + "': {$exists: false}, '" + GROUP_ID + "': '" + leafId + "'}") > 0) {
+        String query1 = "{'" + NODE_ID + "': {$exists: false}, '" + GROUP_ID + "': '" + leafId + "'}";
+        Document mergedSlice = sliceDatabase.findSlice(query1);
+        if (mergedSlice != null) {
             return;
         }
 
-        String targetSignature = slicingCriterion.getTargetSignature();
-        ArrayList<String> targetParamNums = slicingCriterion.getTargetParamNums();
+        String targetStatement = slicingCriterion.getTargetStatement();
+        ArrayList<String> targetParamNumbers = slicingCriterion.getTargetParamNumbers();
+        ArrayList<String> targetVariables = convertToStrings(slicingCriterion.getTargetVariables());
+
         ArrayList<ArrayList<String>> listOfIds = callGraph.getListOfIds(leafId, true);
         for (ArrayList<String> ids : listOfIds) {
-            ArrayList<Document> slice = new ArrayList<>();
+            ArrayList<Document> mergedContent = new ArrayList<>();
             for (String id : ids) {
-                ArrayList<Document> tempSlice = sliceDatabase.getSlice(id);
-                slice.addAll(tempSlice);
+                String query2 = "{'" + NODE_ID + "': '" + id + "'}";
+                Document slice = sliceDatabase.findSlice(query2);
+                if (slice == null) {
+                    continue;
+                }
+
+                List<Document> content = slice.getList(CONTENT, Document.class);
+                mergedContent.addAll(content);
             }
 
-            if (slice.isEmpty()) {
+            if (mergedContent.isEmpty()) {
                 continue;
             }
 
-            if (isStartingParameter(slice)) {
+            if (isStartingParameter(mergedContent)) {
                 continue;
             }
 
             if (ids.size() > 1) {
-                removeUnreachableLines(ids, slice);
+                removeUnreachableLines(ids, mergedContent);
             }
 
-            sliceDatabase.insert(leafId, targetSignature, targetParamNums, slice);
+            sliceDatabase.insert(leafId, targetStatement, targetParamNumbers, targetVariables, mergedContent);
         }
     }
 
@@ -87,15 +99,6 @@ public class SliceMerger {
         ArrayList<String> unitStrings = sliceOptimizer.getUnreachableUnitStrings(ids);
         if (unitStrings.isEmpty()) {
             return;
-        }
-
-        for (String id : ids) {
-            String query = "{'" + NODE_ID + "': '" + id + "'}";
-            FindIterable<Document> result = sliceDatabase.selectAll(query);
-            Document document = result.first();
-            if (document != null) {
-                sliceDatabase.findOneAndUpdate(query, document);
-            }
         }
 
         ArrayList<Document> tempSlice = new ArrayList<>(mergedSlice);

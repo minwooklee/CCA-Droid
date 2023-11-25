@@ -32,6 +32,7 @@ public class SlicingCriteriaGenerator {
     public SlicingCriteriaGenerator() {
         apkParser = ApkParser.getInstance();
         codeInspector = CodeInspector.getInstance();
+
         slicingCriterionMap = new HashMap<>();
     }
 
@@ -49,7 +50,7 @@ public class SlicingCriteriaGenerator {
 
         ArrayList<SlicingCriterion> candidates = getSlicingCandidates(ruleFileDir);
         for (SlicingCriterion sc : candidates) {
-            String targetSignature = sc.getTargetSignature();
+            String targetSignature = sc.getTargetStatement();
             if (!isCorrectSignature(targetSignature)) {
                 continue;
             }
@@ -59,7 +60,7 @@ public class SlicingCriteriaGenerator {
                 continue;
             }
 
-            ArrayList<String> targetParamNums = sc.getTargetParamNums();
+            ArrayList<String> targetParamNumbers = sc.getTargetParamNumbers();
 
             Stream<Edge> stream = callee.edges();
             List<Edge> edges = stream.collect(Collectors.toList());
@@ -73,7 +74,7 @@ public class SlicingCriteriaGenerator {
                     listOfCallersMap.put(callerName, listOfCallers);
                 }
 
-                ArrayList<SlicingCriterion> criteria = createSlicingCriteria(callerName, targetSignature, INVOKE, targetParamNums);
+                ArrayList<SlicingCriterion> criteria = createSlicingCriteria(callerName, targetSignature, INVOKE, targetParamNumbers);
                 slicingCriteria.addAll(criteria);
             }
         }
@@ -81,12 +82,12 @@ public class SlicingCriteriaGenerator {
         return slicingCriteria;
     }
 
-    public ArrayList<SlicingCriterion> createSlicingCriteria(String callerName, String targetSignature, int targetUnitType, ArrayList<String> targetParamNums) {
+    public ArrayList<SlicingCriterion> createSlicingCriteria(String callerName, String targetStatement, int targetUnitType, ArrayList<String> targetParamNumbers) {
         ArrayList<SlicingCriterion> slicingCriteria = new ArrayList<>();
 
         String returnType = null;
         if (targetUnitType == ASSIGN) {
-            returnType = getReturnType(targetSignature);
+            returnType = getReturnType(targetStatement);
         } else if (targetUnitType == RETURN_VALUE) {
             returnType = getReturnType(callerName);
         }
@@ -95,19 +96,19 @@ public class SlicingCriteriaGenerator {
             return slicingCriteria;
         }
 
-        ArrayList<Unit> wholeUnits = codeInspector.getWholeUnits(callerName);
-        if (wholeUnits == null || wholeUnits.isEmpty()) {
+        ArrayList<Unit> wholeUnit = codeInspector.getWholeUnit(callerName);
+        if (wholeUnit == null || wholeUnit.isEmpty()) {
             return slicingCriteria;
         }
 
-        wholeUnits = new ArrayList<>(wholeUnits);
-        Collections.reverse(wholeUnits);
+        ArrayList<Unit> reversedUnits = new ArrayList<>(wholeUnit);
+        Collections.reverse(reversedUnits);
 
-        int wholeUnitCount = wholeUnits.size();
+        int wholeUnitCount = wholeUnit.size();
         for (int i = 0; i < wholeUnitCount; i++) {
-            Unit unit = wholeUnits.get(i);
+            Unit unit = reversedUnits.get(i);
             String unitStr = unit.toString();
-            if (!(unitStr.contains(targetSignature))) {
+            if (!(unitStr.contains(targetStatement))) {
                 continue;
             }
 
@@ -119,7 +120,7 @@ public class SlicingCriteriaGenerator {
                 continue;
             }
 
-            HashSet<Value> targetVariables = new HashSet<>();
+            ArrayList<Value> targetVariables = new ArrayList<>();
 
             switch (unitType) {
                 case ASSIGN_SIGNATURE_VARIABLE:
@@ -138,17 +139,16 @@ public class SlicingCriteriaGenerator {
                     String signature = getSignature(unitStr);
                     ArrayList<String> paramTypes = getParamTypes(signature);
                     ArrayList<Value> paramValues = getParamValues(unit, unitType);
-                    if ((!targetParamNums.isEmpty() && paramTypes.isEmpty()) || (targetParamNums.isEmpty() && !paramTypes.isEmpty())) {
+                    if ((!targetParamNumbers.isEmpty() && paramTypes.isEmpty()) || (targetParamNumbers.isEmpty() && !paramTypes.isEmpty())) {
                         continue;
                     }
 
-                    if (targetParamNums.contains("-1")) {
+                    if (targetParamNumbers.contains("-1")) {
                         Value value = getLocalValue(unit, unitType);
                         targetVariables.add(value);
                     }
 
-                    ArrayList<String> tempParamNums = new ArrayList<>(targetParamNums);
-                    for (String j : tempParamNums) { // for multiple paramNums
+                    for (String j : targetParamNumbers) { // for multiple paramNumbers
                         if (j.equals("-1")) {
                             continue;
                         }
@@ -163,28 +163,29 @@ public class SlicingCriteriaGenerator {
                         targetVariables.add(value);
                     }
 
-                    if (targetSignature.isEmpty()) {
-                        targetSignature = signature;
-                        targetParamNums.clear();
+                    if (targetStatement.isEmpty()) {
+                        targetStatement = signature;
+                        targetParamNumbers.clear();
                     }
 
                     break;
                 }
             }
 
-            if (targetVariables.isEmpty() || isDuplicatedCriterion(targetSignature, targetVariables, slicingCriteria)) {
+            if (targetVariables.isEmpty()) {
+                continue;
+            }
+
+            if (isDuplicatedCriterion(targetStatement, targetVariables, slicingCriteria)) {
                 continue;
             }
 
             SlicingCriterion slicingCriterion = new SlicingCriterion();
             slicingCriterion.setCallerName(callerName);
-            slicingCriterion.setTargetSignature(targetSignature);
-            slicingCriterion.setTargetParamNums(targetParamNums);
+            slicingCriterion.setTargetStatement(targetStatement);
+            slicingCriterion.setTargetParamNumbers(targetParamNumbers);
             slicingCriterion.setTargetUnitIndex(i);
-            slicingCriterion.setTargetVariables(new HashSet<>(targetVariables));
-            if (slicingCriteria.contains(slicingCriterion)) {
-                continue;
-            }
+            slicingCriterion.setTargetVariables(new ArrayList<>(targetVariables));
 
             String nodeId = String.valueOf(slicingCriterion.hashCode());
             slicingCriterionMap.put(nodeId, slicingCriterion);
@@ -224,16 +225,16 @@ public class SlicingCriteriaGenerator {
                 Iterator<String> keys = signatures.keys();
                 while (keys.hasNext()) {
                     String signature = keys.next();
-                    ArrayList<String> paramNums = new ArrayList<>();
+                    ArrayList<String> paramNumbers = new ArrayList<>();
                     JSONArray jsonArr = signatures.getJSONArray(signature);
                     for (int i = 0; i < jsonArr.length(); i++) {
                         int paramNum = jsonArr.getInt(i);
-                        paramNums.add(String.valueOf(paramNum));
+                        paramNumbers.add(String.valueOf(paramNum));
                     }
 
                     SlicingCriterion slicingCriterion = new SlicingCriterion();
-                    slicingCriterion.setTargetSignature(signature);
-                    slicingCriterion.setTargetParamNums(paramNums);
+                    slicingCriterion.setTargetStatement(signature);
+                    slicingCriterion.setTargetParamNumbers(paramNumbers);
                     candidates.add(slicingCriterion);
                 }
 
@@ -256,56 +257,65 @@ public class SlicingCriteriaGenerator {
     }
 
     private void setReachableCallers(String packageName, String appClassName, ArrayList<String> appComponents, ArrayList<ArrayList<String>> listOfCallers) {
-        ArrayList<ArrayList<String>> targets = new ArrayList<>();
+        ArrayList<ArrayList<String>> unreachables = new ArrayList<>();
 
         for (ArrayList<String> l : listOfCallers) {
             boolean flag = true;
 
             for (String c : l) {
                 String className = getClassName(c);
-                className = className.split("\\$")[0];
-                if (className.contains(packageName) || className.equals(appClassName) || appComponents.contains(className)) {
+                if (isAppComponent(packageName, appClassName, appComponents, className)) {
                     flag = false;
                     break;
                 }
 
-                HashSet<String> tempSet1;
-                HashSet<String> tempSet2;
-                HashSet<String> set1 = new HashSet<>(Arrays.asList(packageName.split("\\.")));
-                HashSet<String> set2 = new HashSet<>(Arrays.asList(className.split("\\.")));
-                if (set1.size() <= set2.size()) {
-                    tempSet1 = set1;
-                    tempSet2 = set2;
-                } else {
-                    tempSet1 = set2;
-                    tempSet2 = set1;
-                }
-
-                int count = 0;
-                for (String s : tempSet1) {
-                    if (tempSet2.contains(s)) {
-                        count++;
-                    }
-                }
-
-                if (count > 1) {
+                if (isPackageNameRelated(packageName, className)) {
                     flag = false;
                     break;
                 }
             }
 
             if (flag) {
-                targets.add(l);
+                unreachables.add(l);
             }
         }
 
-        listOfCallers.removeAll(targets);
+        listOfCallers.removeAll(unreachables);
     }
 
-    private boolean isDuplicatedCriterion(String targetSignature, HashSet<Value> targetVariables, ArrayList<SlicingCriterion> slicingCriteria) {
+    private boolean isAppComponent(String packageName, String appClassName, ArrayList<String> appComponents, String targetClassName) {
+        String className = targetClassName.split("\\$")[0];
+
+        return (className.contains(packageName) || className.equals(appClassName) || appComponents.contains(className));
+    }
+
+    private boolean isPackageNameRelated(String packageName, String targetClassName) {
+        HashSet<String> tempSet1;
+        HashSet<String> tempSet2;
+        HashSet<String> set1 = new HashSet<>(Arrays.asList(packageName.split("\\.")));
+        HashSet<String> set2 = new HashSet<>(Arrays.asList(targetClassName.split("\\.")));
+        if (set1.size() <= set2.size()) {
+            tempSet1 = set1;
+            tempSet2 = set2;
+        } else {
+            tempSet1 = set2;
+            tempSet2 = set1;
+        }
+
+        int count = 0;
+        for (String s : tempSet1) {
+            if (tempSet2.contains(s)) {
+                count++;
+            }
+        }
+
+        return count > 1;
+    }
+
+    private boolean isDuplicatedCriterion(String targetSignature, ArrayList<Value> targetVariables, ArrayList<SlicingCriterion> slicingCriteria) {
         for (SlicingCriterion sc : slicingCriteria) {
-            String signature = sc.getTargetSignature();
-            HashSet<Value> variables = sc.getTargetVariables();
+            String signature = sc.getTargetStatement();
+            ArrayList<Value> variables = sc.getTargetVariables();
             if (targetSignature.equals(signature) && targetVariables.containsAll(variables)) {
                 return true;
             }

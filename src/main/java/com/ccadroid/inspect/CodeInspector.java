@@ -22,13 +22,14 @@ public class CodeInspector {
     private final CallGraph callGraph;
     private final HashMap<String, Value> constantValueMap;
     private final HashMap<String, HashMap<Integer, ArrayList<Unit>>> targetUnitsMap;
-    private final HashMap<String, ArrayList<Unit>> wholeUnitsMap;
+    private final HashMap<String, ArrayList<Unit>> wholeUnitMap;
 
     private CodeInspector() {
         callGraph = new CallGraph();
+
         constantValueMap = new HashMap<>();
         targetUnitsMap = new HashMap<>();
-        wholeUnitsMap = new HashMap<>();
+        wholeUnitMap = new HashMap<>();
     }
 
     public static CodeInspector getInstance() {
@@ -122,10 +123,10 @@ public class CodeInspector {
 
                             case SWITCH: {
                                 int index = units.size() - units.indexOf(u) - 1;
-                                List<Unit> list = SootUnit.getTargetUnits(u, unitType);
-                                ArrayList<Unit> targets = new ArrayList<>(list);
+                                ArrayList<Unit> tempTargetUnits = SootUnit.getTargetUnits(u, unitType);
+                                ArrayList<Unit> targetUnits = new ArrayList<>(tempTargetUnits);
 
-                                map.put(index, targets);
+                                map.put(index, targetUnits);
                                 break;
                             }
 
@@ -139,8 +140,8 @@ public class CodeInspector {
                         }
                     }
 
-                    ArrayList<Unit> wholeUnits = new ArrayList<>(units);
-                    wholeUnitsMap.put(callerName, wholeUnits);
+                    ArrayList<Unit> wholeUnit = new ArrayList<>(units);
+                    wholeUnitMap.put(callerName, wholeUnit);
                 } catch (RuntimeException | StackOverflowError | OutOfMemoryError ignored) { // for Soot internal error
 
                 }
@@ -156,25 +157,27 @@ public class CodeInspector {
         return callGraph.getListOfIds(signature, upper);
     }
 
-    public HashMap<Integer, ArrayList<Unit>> getTargetUnits(String callerName) {
+    public HashMap<Integer, ArrayList<Unit>> getTargetUnitsMap(String callerName) {
         return targetUnitsMap.get(callerName);
     }
 
-    public ArrayList<Unit> getWholeUnits(String signature) {
-        return wholeUnitsMap.get(signature);
+    public ArrayList<Unit> getWholeUnit(String signature) {
+        return wholeUnitMap.get(signature);
     }
 
-    public boolean isLoopStatement(Unit unit, int unitType, ArrayList<Unit> wholeUnits) {
+    public boolean isLoopStatement(Unit unit, int unitType, ArrayList<Unit> wholeUnit) {
         Unit targetUnit = getTargetUnit(unit, unitType);
 
         if (unitType == IF) {
-            int targetUnitIndex = wholeUnits.indexOf(targetUnit);
-            Unit tempUnit = wholeUnits.get(targetUnitIndex + 1);
-            int tempUnitType = getUnitType(tempUnit);
-            return isLoopStatement(tempUnit, tempUnitType, wholeUnits);
+            int targetUnitIndex = wholeUnit.indexOf(targetUnit);
+            Unit nextUnit = wholeUnit.get(targetUnitIndex + 1);
+            int nextUnitType = getUnitType(nextUnit);
+
+            return isLoopStatement(nextUnit, nextUnitType, wholeUnit);
         } else {
-            int tempUnitType = getUnitType(targetUnit);
-            return (tempUnitType == IF);
+            int targetUnitType = getUnitType(targetUnit);
+
+            return (targetUnitType == IF);
         }
     }
 

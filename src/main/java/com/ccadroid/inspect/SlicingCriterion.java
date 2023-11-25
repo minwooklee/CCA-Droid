@@ -3,14 +3,13 @@ package com.ccadroid.inspect;
 import soot.Value;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 
 public class SlicingCriterion {
     private String callerName;
-    private String targetSignature;
+    private String targetStatement;
     private int targetUnitIndex;
-    private ArrayList<String> targetParamNums;
-    private HashSet<Value> targetVariables;
+    private ArrayList<String> targetParamNumbers;
+    private ArrayList<Value> targetVariables;
 
     public String getCallerName() {
         return callerName;
@@ -20,12 +19,12 @@ public class SlicingCriterion {
         this.callerName = callerName;
     }
 
-    public String getTargetSignature() {
-        return targetSignature;
+    public String getTargetStatement() {
+        return targetStatement;
     }
 
-    public void setTargetSignature(String targetSignature) {
-        this.targetSignature = targetSignature;
+    public void setTargetStatement(String targetStatement) {
+        this.targetStatement = targetStatement;
     }
 
     public int getTargetUnitIndex() {
@@ -36,30 +35,30 @@ public class SlicingCriterion {
         this.targetUnitIndex = targetUnitIndex;
     }
 
-    public ArrayList<String> getTargetParamNums() {
-        return targetParamNums;
+    public ArrayList<String> getTargetParamNumbers() {
+        return targetParamNumbers;
     }
 
-    public void setTargetParamNums(ArrayList<String> targetParamNums) {
-        this.targetParamNums = targetParamNums;
+    public void setTargetParamNumbers(ArrayList<String> targetParamNumbers) {
+        this.targetParamNumbers = targetParamNumbers;
     }
 
-    public HashSet<Value> getTargetVariables() {
+    public ArrayList<Value> getTargetVariables() {
         return targetVariables;
     }
 
-    public void setTargetVariables(HashSet<Value> targetVariables) {
+    public void setTargetVariables(ArrayList<Value> targetVariables) {
         this.targetVariables = targetVariables;
     }
 
     @Override
     public int hashCode() {
-        return callerName.hashCode() + targetSignature.hashCode() + targetUnitIndex + targetVariables.hashCode();
+        return callerName.hashCode() + targetStatement.hashCode() + targetUnitIndex + targetVariables.hashCode();
     }
 
     @Override
     public String toString() {
-        return "SlicingCriterion{caller=" + callerName + ", targetSignature=" + targetSignature + ", targetVariables=" + targetVariables + "}";
+        return "SlicingCriterion{caller=" + callerName + ", targetSignature=" + targetStatement + ", targetVariables=" + targetVariables + "}";
     }
 
     @Override

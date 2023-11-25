@@ -42,6 +42,7 @@ public class ProgramSlicer {
         sliceOptimizer = SliceOptimizer.getInstance();
         sliceDatabase = SliceDatabase.getInstance();
         sliceMerger = SliceMerger.getInstance();
+
         deque = new LinkedList<>();
         unitsMap = new HashMap<>();
         tempSlicingCriteriaMap = new HashMap<>();
@@ -69,7 +70,9 @@ public class ProgramSlicer {
 
     private void sliceStatement(SlicingCriterion slicingCriterion) {
         String nodeId = String.valueOf(slicingCriterion.hashCode());
-        if (sliceDatabase.selectCount("{'" + NODE_ID + "': '" + nodeId + "'}") > 0) {
+        String query = "{'" + NODE_ID + "': '" + nodeId + "'}";
+        Document slice = sliceDatabase.findSlice(query);
+        if (slice != null) {
             return;
         }
 
@@ -77,36 +80,31 @@ public class ProgramSlicer {
         String groupId = (String) node.getAttribute(GROUP_ID);
 
         String callerName = slicingCriterion.getCallerName();
-        String targetSignature = slicingCriterion.getTargetSignature();
+        String targetStatement = slicingCriterion.getTargetStatement();
         int startUnitIndex = slicingCriterion.getTargetUnitIndex();
-        HashSet<Value> oldTargetVariables = slicingCriterion.getTargetVariables();
-        ArrayList<String> targetVariables = new ArrayList<>();
-        for (Value v : oldTargetVariables) {
-            String valueStr = convertToStr(v);
-            targetVariables.add(valueStr);
-        }
+        ArrayList<Value> startTargetVariables = slicingCriterion.getTargetVariables();
 
-        ArrayList<Unit> tempWholeUnits = codeInspector.getWholeUnits(callerName);
-        ArrayList<Unit> wholeUnits = new ArrayList<>(tempWholeUnits);
-        Collections.reverse(wholeUnits);
+        ArrayList<Unit> wholeUnit = codeInspector.getWholeUnit(callerName);
+        ArrayList<Unit> reversedUnits = new ArrayList<>(wholeUnit);
+        Collections.reverse(reversedUnits);
 
-        int wholeUnitCount = wholeUnits.size();
-        Unit startUnit = wholeUnits.get(startUnitIndex);
+        int wholeUnitCount = wholeUnit.size();
+        Unit startUnit = reversedUnits.get(startUnitIndex);
         int startUnitType = getUnitType(startUnit);
         int startLineNum = wholeUnitCount - startUnitIndex;
-        HashMap<Integer, ArrayList<Unit>> switchTargetUnitMap = codeInspector.getTargetUnits(callerName);
-        Set<Map.Entry<Integer, ArrayList<Unit>>> switchTargetUnitSet = (switchTargetUnitMap == null) ? null : switchTargetUnitMap.entrySet();
+        HashMap<Integer, ArrayList<Unit>> switchTargetUnitsMap = codeInspector.getTargetUnitsMap(callerName);
+        Set<Map.Entry<Integer, ArrayList<Unit>>> switchTargetUnitSet = (switchTargetUnitsMap == null) ? null : switchTargetUnitsMap.entrySet();
 
-        newTargetVariables = new HashSet<>(oldTargetVariables);
-        ArrayList<String> newParamNums = new ArrayList<>();
+        newTargetVariables = new HashSet<>(startTargetVariables);
+        ArrayList<String> newParamNumbers = new ArrayList<>();
 
         ArrayList<Unit> units = new ArrayList<>();
         units.add(startUnit);
-        ArrayList<Document> slice = new ArrayList<>();
-        addLine(startUnit, startUnitType, callerName, startLineNum, slice);
+        ArrayList<Document> content = new ArrayList<>();
+        addLine(startUnit, startUnitType, callerName, startLineNum, content);
 
         for (int i = startUnitIndex + 1; i < wholeUnitCount; i++) {
-            Unit unit = wholeUnits.get(i);
+            Unit unit = reversedUnits.get(i);
             int unitType = getUnitType(unit);
             if (unitType == -1) {
                 continue;
@@ -123,12 +121,12 @@ public class ProgramSlicer {
             String unitStr = unit.toString();
             int lineNum = wholeUnitCount - i;
             if (unitType == IF) {
-                if (codeInspector.isLoopStatement(unit, unitType, wholeUnits)) {
+                if (codeInspector.isLoopStatement(unit, unitType, reversedUnits)) {
                     continue;
                 }
 
                 Unit targetUnit = getTargetUnit(unit, unitType);
-                int targetUnitIndex = wholeUnits.indexOf(targetUnit);
+                int targetUnitIndex = reversedUnits.indexOf(targetUnit);
                 if (targetUnit != null && startUnitIndex > targetUnitIndex) {
                     continue;
                 }
@@ -137,22 +135,22 @@ public class ProgramSlicer {
                 addTargetVariables(conditionValues, newTargetVariables);
 
                 units.add(0, unit);
-                addLine(unit, unitType, callerName, lineNum, slice);
+                addLine(unit, unitType, callerName, lineNum, content);
                 continue;
             } else if (unitType == GOTO) {
-                if (codeInspector.isLoopStatement(unit, unitType, wholeUnits)) {
+                if (codeInspector.isLoopStatement(unit, unitType, reversedUnits)) {
                     continue;
                 }
 
                 units.add(0, unit);
-                addLine(unit, unitType, callerName, lineNum, slice);
+                addLine(unit, unitType, callerName, lineNum, content);
                 continue;
             } else if (unitType == SWITCH) {
                 Value value = getSwitchValue(unit, unitType);
                 addTargetVariable(value, newTargetVariables);
 
                 units.add(0, unit);
-                addLine(unit, unitType, callerName, lineNum, slice);
+                addLine(unit, unitType, callerName, lineNum, content);
                 continue;
             }
 
@@ -239,16 +237,16 @@ public class ProgramSlicer {
                 }
 
                 case PARAMETER: {
-                    String paramNum = getParamNum(unitStr, unitType);
-                    newParamNums.add(0, paramNum);
+                    String paramNumber = getParamNumber(unitStr, unitType);
+                    newParamNumbers.add(0, paramNumber);
                     break;
                 }
 
                 case NEW_INSTANCE:
                 case NEW_ARRAY:
                 case ASSIGN_VARIABLE_CONSTANT: {
-                    Value Value = getLeftValue(unit, unitType);
-                    if (!retainVariables.contains(Value)) {
+                    Value value = getLeftValue(unit, unitType);
+                    if (!retainVariables.contains(value)) {
                         continue;
                     }
 
@@ -284,9 +282,9 @@ public class ProgramSlicer {
                 }
 
                 case ASSIGN_VARIABLE_ADD: {
-                    Unit targetUnit = wholeUnits.get(i - 1);
-                    int targetUnitType = getUnitType(targetUnit);
-                    if (targetUnitType == GOTO) {
+                    Unit prevUnit = reversedUnits.get(i - 1);
+                    int prevUnitType = getUnitType(prevUnit);
+                    if (prevUnitType == GOTO) {
                         Value value = getLeftValue(unit, unitType);
                         newTargetVariables.remove(value);
                         continue;
@@ -310,23 +308,23 @@ public class ProgramSlicer {
             }
 
             units.add(0, unit);
-            addLine(unit, unitType, callerName, lineNum, slice);
+            addLine(unit, unitType, callerName, lineNum, content);
         }
 
-        ArrayList<Unit> unreachableUnits = sliceOptimizer.getUnreachableUnits(tempWholeUnits, units);
+        ArrayList<Unit> unreachableUnits = sliceOptimizer.getUnreachableUnits(wholeUnit, units);
         removeTempSlicingCriteria(unreachableUnits);
 
         units.removeAll(unreachableUnits);
-        sliceInterpreter.interpret(units, slice);
+        sliceInterpreter.interpret(units, content);
         unitsMap.put(nodeId, units);
 
-        ArrayList<String> targetParamNums = slicingCriterion.getTargetParamNums();
-        if (targetParamNums == null || !targetParamNums.isEmpty()) {
-            handleParameterUnit(node, groupId, callerName, newParamNums);
+        ArrayList<String> targetParamNumbers = slicingCriterion.getTargetParamNumbers();
+        if (targetParamNumbers == null || !targetParamNumbers.isEmpty()) {
+            handleParameterUnit(node, groupId, callerName, newParamNumbers);
         }
 
         addTempSlicingCriteria(units);
-        sliceDatabase.insert(nodeId, groupId, callerName, targetSignature, startUnitIndex, targetVariables, slice);
+        sliceDatabase.insert(nodeId, groupId, callerName, targetStatement, startUnitIndex, convertToStrings(startTargetVariables), content);
     }
 
     private int getSwitchUnitIndex(Unit unit, Set<Map.Entry<Integer, ArrayList<Unit>>> switchTargetUnitSet) {
@@ -386,13 +384,13 @@ public class ProgramSlicer {
         }
 
         ArrayList<SlicingCriterion> slicingCriteria;
-        ArrayList<String> paramNums = new ArrayList<>();
+        ArrayList<String> paramNumbers = new ArrayList<>();
 
         int unitType = getUnitType(unit);
         if ((unitType & ASSIGN) == ASSIGN) { // for ASSIGN_INVOKE_UNIT
-            slicingCriteria = slicingCriteriaGenerator.createSlicingCriteria(calleeName, "return", RETURN_VALUE, paramNums);
+            slicingCriteria = slicingCriteriaGenerator.createSlicingCriteria(calleeName, "return", RETURN_VALUE, paramNumbers);
         } else {
-            slicingCriteria = slicingCriteriaGenerator.createSlicingCriteria(calleeName, "", INVOKE, paramNums);
+            slicingCriteria = slicingCriteriaGenerator.createSlicingCriteria(calleeName, "", INVOKE, paramNumbers);
         }
 
         for (SlicingCriterion sc : slicingCriteria) {
@@ -450,8 +448,8 @@ public class ProgramSlicer {
         tempSlicingCriteriaMap.put(unit, tempSlicingCriteria);
     }
 
-    private void handleParameterUnit(Node child, String groupId, String calleeName, ArrayList<String> paramNums) {
-        if (paramNums.isEmpty()) {
+    private void handleParameterUnit(Node child, String groupId, String calleeName, ArrayList<String> paramNumbers) {
+        if (paramNumbers.isEmpty()) {
             return;
         }
 
@@ -469,7 +467,7 @@ public class ProgramSlicer {
             Node caller = e.getSourceNode();
             String callerName = caller.getId();
 
-            ArrayList<SlicingCriterion> slicingCriteria = slicingCriteriaGenerator.createSlicingCriteria(callerName, calleeName, INVOKE, paramNums);
+            ArrayList<SlicingCriterion> slicingCriteria = slicingCriteriaGenerator.createSlicingCriteria(callerName, calleeName, INVOKE, paramNumbers);
             for (SlicingCriterion sc : slicingCriteria) {
                 String parentId = String.valueOf(sc.hashCode());
                 Node parent = sliceMerger.addNode(parentId, parentId, groupId, level);
@@ -480,11 +478,13 @@ public class ProgramSlicer {
     }
 
     private void addLine(Unit unit, int unitType, String callerName, int lineNum, ArrayList<Document> slice) {
+        String unitStr = unit.toString();
+
         Document line = new Document();
-        line.append(UNIT_STRING, unit.toString());
+        line.append(UNIT_STRING, unitStr);
         line.append(UNIT_TYPE, unitType);
         line.append(CALLER_NAME, callerName);
-        line.append(LINE_NUMBER, lineNum);
+        line.append(LINE_NUM, lineNum);
         if ((unitType & INVOKE) == INVOKE || unitType == ASSIGN_VARIABLE_CONSTANT || unitType == ASSIGN_SIGNATURE_CONSTANT || unitType == RETURN_VALUE) {
             ArrayList<String> constants = getConstants(unit, unitType);
             if (!constants.isEmpty()) {
