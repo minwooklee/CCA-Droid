@@ -83,6 +83,53 @@ public class RuleChecker {
         }
     }
 
+    public void extractLines(List<Document> content, String targetVariable, String targetSignature, String targetParamNum, List<Document> targetLines) {
+        ArrayList<Document> tempContent = new ArrayList<>(content);
+        Collections.reverse(tempContent);
+
+        for (Document l : tempContent) {
+            String unitStr = l.getString(UNIT_STRING);
+            if (targetVariable != null && !unitStr.contains(targetVariable)) {
+                continue;
+            }
+
+            if (targetSignature != null && targetSignature.equals(l.getString(CALLER_NAME))) {
+                continue;
+            }
+
+            if (targetLines.contains(l)) {
+                continue;
+            }
+
+            targetLines.add(0, l);
+            int unitType = l.getInteger(UNIT_TYPE);
+            if ((unitType & INVOKE) == INVOKE) {
+                if (targetSignature != null && unitStr.contains(targetSignature)) {
+                    ArrayList<String> paramValues = getParamValues(unitStr);
+                    targetVariable = paramValues.get(Integer.parseInt(targetParamNum));
+                    targetSignature = null;
+                    targetParamNum = null;
+                } else {
+                    if (targetVariable != null && !unitStr.startsWith(targetVariable)) {
+                        continue;
+                    }
+
+                    String valueStr = getLocalValue(unitStr);
+                    if (valueStr == null) {
+                        continue;
+                    }
+
+                    extractLines(content, valueStr, null, null, targetLines);
+                }
+            } else if (unitType == PARAMETER) {
+                String paramNum = getParamNumber(unitStr, unitType);
+                extractLines(content, null, l.getString(CALLER_NAME), paramNum, targetLines);
+            } else if (unitType == ASSIGN_VARIABLE_CONSTANT) {
+                break;
+            }
+        }
+    }
+
     public void checkRules() {
         HashMap<JSONObject, HashMap<String, ArrayList<Document>>> sliceMap = classifySlices();
         if (sliceMap.isEmpty()) {
@@ -190,7 +237,7 @@ public class RuleChecker {
                 }
 
                 if (obj.has(TARGET_CONSTANT)) {
-                    String unitStr = checkConstant(content, obj, targetSignatures);
+                    String unitStr = checkConstant(s, content, obj, targetSignatures);
                     if (unitStr != null) {
                         unitStrings.add(unitStr);
                     }
@@ -241,7 +288,7 @@ public class RuleChecker {
 
                 Object obj4 = getValue(arr, TARGET_CONSTANT);
                 if (obj4 != null) {
-                    String unitStr = checkConstant(content, obj4, targetSignatures);
+                    String unitStr = checkConstant(s, content, obj4, targetSignatures);
                     if (unitStr != null) {
                         unitStrings.add(unitStr);
                     }
@@ -454,15 +501,28 @@ public class RuleChecker {
         return null;
     }
 
-    private String checkConstant(List<Document> content, Object object, Object targetSignatures) {
-        String oldUnitStr = checkConstant(content, object);
+    private String checkConstant(Document slice, List<Document> content, Object object, Object targetSignatures) {
+        List<Document> targetLines = new ArrayList<>();
+
+        List<String> targetParamNumbers = slice.getList(TARGET_PARAM_NUMBERS, String.class);
+        if (targetParamNumbers != null && targetParamNumbers.contains("-1")) {
+            List<String> targetVariables = slice.getList(TARGET_VARIABLES, String.class);
+            String targetVariable = targetVariables.get(1);
+            extractLines(content, targetVariable, null, null, targetLines);
+        }
+
+        if (targetLines.isEmpty()) {
+            return null;
+        }
+
+        String oldUnitStr = checkConstant(targetLines, object);
         if (targetSignatures == null) {
             return oldUnitStr;
         }
 
-        String newUnitStr = findSecureUnitString(content, targetSignatures);
+        String newUnitStr = findSecureUnitString(targetLines, targetSignatures);
 
-        return findLateUnitString(content, oldUnitStr, newUnitStr);
+        return findLateUnitString(targetLines, oldUnitStr, newUnitStr);
     }
 
     private String checkConstant(List<Document> content, Object object) {

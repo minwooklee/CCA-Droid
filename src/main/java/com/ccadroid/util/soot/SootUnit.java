@@ -204,6 +204,20 @@ public class SootUnit {
         return value;
     }
 
+    public static String getLocalValue(String unitStr) {
+        int beginIndex = unitStr.indexOf("invoke");
+        int endIndex = unitStr.indexOf(".<");
+        if (endIndex == -1) {
+            return null;
+        }
+
+        String str = unitStr.substring(beginIndex, endIndex);
+        StringTokenizer tokenizer = new StringTokenizer(str);
+        tokenizer.nextToken();
+
+        return tokenizer.nextToken();
+    }
+
     public static ArrayList<Value> getParamValues(Unit unit, int unitType) {
         if ((unitType & INVOKE) != INVOKE) {
             return new ArrayList<>();
