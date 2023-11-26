@@ -5,8 +5,10 @@ import com.ccadroid.util.graph.BaseGraph;
 import com.ccadroid.util.graph.CallGraph;
 import org.bson.Document;
 import org.graphstream.graph.Node;
+import soot.Unit;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 import static com.ccadroid.slice.SliceConstants.*;
@@ -60,7 +62,9 @@ public class SliceMerger {
 
         ArrayList<ArrayList<String>> listOfIds = callGraph.getListOfIds(leafId, true);
         for (ArrayList<String> ids : listOfIds) {
+            ArrayList<Document> slices = new ArrayList<>();
             ArrayList<Document> mergedContent = new ArrayList<>();
+
             for (String id : ids) {
                 String query2 = "{'" + NODE_ID + "': '" + id + "'}";
                 Document slice = sliceDatabase.findSlice(query2);
@@ -68,6 +72,7 @@ public class SliceMerger {
                     continue;
                 }
 
+                slices.add(slice);
                 List<Document> content = slice.getList(CONTENT, Document.class);
                 mergedContent.addAll(content);
             }
@@ -81,7 +86,11 @@ public class SliceMerger {
             }
 
             if (ids.size() > 1) {
-                removeUnreachableLines(ids, mergedContent);
+                ArrayList<Document> unreachables = sliceOptimizer.getUnreachableLines(slices);
+                mergedContent.removeAll(unreachables);
+
+                HashMap<Unit, Unit> updates = sliceOptimizer.getInterpretedUnits(slices);
+                sliceOptimizer.updateLines(updates, mergedContent);
             }
 
             sliceDatabase.insert(leafId, targetStatement, targetParamNumbers, targetVariables, mergedContent);
@@ -93,21 +102,6 @@ public class SliceMerger {
         int topUnitType = topLine.getInteger(UNIT_TYPE);
 
         return (topUnitType == PARAMETER);
-    }
-
-    private void removeUnreachableLines(ArrayList<String> ids, ArrayList<Document> mergedSlice) {
-        ArrayList<String> unitStrings = sliceOptimizer.getUnreachableUnitStrings(ids);
-        if (unitStrings.isEmpty()) {
-            return;
-        }
-
-        ArrayList<Document> tempSlice = new ArrayList<>(mergedSlice);
-        for (Document l : tempSlice) {
-            String unitStr = l.getString(UNIT_STRING);
-            if (unitStrings.contains(unitStr)) {
-                mergedSlice.remove(l);
-            }
-        }
     }
 
     private static class Holder {

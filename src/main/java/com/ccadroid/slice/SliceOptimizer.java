@@ -1,26 +1,23 @@
 package com.ccadroid.slice;
 
 import com.ccadroid.inspect.CodeInspector;
-import com.ccadroid.inspect.SlicingCriteriaGenerator;
-import com.ccadroid.inspect.SlicingCriterion;
+import org.bson.Document;
 import soot.Unit;
 import soot.Value;
 import soot.jimple.IntConstant;
+import soot.jimple.StringConstant;
 import soot.jimple.internal.*;
 
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.*;
 
+import static com.ccadroid.slice.SliceConstants.*;
 import static com.ccadroid.util.soot.SootUnit.*;
 
 public class SliceOptimizer {
     private final CodeInspector codeInspector;
-    private final SlicingCriteriaGenerator slicingCriteriaGenerator;
-    private ProgramSlicer slicer;
 
     public SliceOptimizer() {
         codeInspector = CodeInspector.getInstance();
-        slicingCriteriaGenerator = SlicingCriteriaGenerator.getInstance();
     }
 
     public static SliceOptimizer getInstance() {
@@ -33,31 +30,119 @@ public class SliceOptimizer {
         return getUnreachableUnits(wholeUnit, units, null, targetValueMap);
     }
 
-    public ArrayList<String> getUnreachableUnitStrings(ArrayList<String> ids) {
-        if (slicer == null) {
-            slicer = ProgramSlicer.getInstance();
-        }
+    public HashMap<Unit, Unit> getInterpretedUnits(ArrayList<Unit> units, HashMap<Value, Unit> targetValueMap) {
+        HashMap<Unit, Unit> updates = new HashMap<>();
 
-        HashMap<Value, String> targetValueMap = new HashMap<>();
-        String targetSignature;
-        ArrayList<String> targetUnitStrings = new ArrayList<>();
+        for (Unit u : units) {
+            int unitType = getUnitType(u);
 
-        for (int i = 0; i < ids.size(); i++) {
-            String nodeId = ids.get(i);
-            SlicingCriterion slicingCriterion = slicingCriteriaGenerator.getSlicingCriterion(nodeId);
-            targetSignature = (i == 0) ? slicingCriterion.getTargetStatement() : slicingCriterion.getCallerName();
-            String signature = slicingCriterion.getCallerName();
-            ArrayList<Unit> wholeUnit = codeInspector.getWholeUnit(signature);
-            ArrayList<Unit> units = slicer.getUnits(nodeId);
+            if (unitType == ASSIGN_VARIABLE_CONSTANT) {
+                Value leftValue = getLeftValue(u, unitType);
+                targetValueMap.put(leftValue, u);
+            } else if ((unitType & INVOKE) == INVOKE) {
+                Value localValue = getLocalValue(u, unitType);
 
-            ArrayList<Unit> unreachableUnits = getUnreachableUnits(wholeUnit, units, targetSignature, targetValueMap);
-            for (Unit u : unreachableUnits) {
                 String unitStr = u.toString();
-                targetUnitStrings.add(unitStr);
+                String signature = getSignature(unitStr);
+                String className = getClassName(signature);
+                String methodName = getMethodName(signature);
+                if (className.equals("java.lang.String") && methodName.equals("replace")) {
+                    if (!targetValueMap.containsKey(localValue)) {
+                        continue;
+                    }
+
+                    Unit oldUnit = targetValueMap.get(localValue);
+                    int oldUnitType = getUnitType(oldUnit);
+                    Value rightValue = getRightValue(oldUnit, oldUnitType);
+                    String rightValueStr = convertToStr(rightValue);
+
+                    ArrayList<String> paramValues = getParamValues(unitStr);
+                    String oldChar = paramValues.get(0);
+                    String newChar = paramValues.get(1);
+
+                    String newValueStr = replaceString(rightValueStr, oldChar, newChar);
+                    Value newValue = StringConstant.v(newValueStr);
+                    Unit newUnit = new JAssignStmt(localValue, newValue);
+                    updates.put(oldUnit, newUnit);
+                }
             }
         }
 
-        return targetUnitStrings;
+        return updates;
+    }
+
+    public void updateLines(HashMap<Unit, Unit> updates, ArrayList<Document> content) {
+        ProgramSlicer slicer = ProgramSlicer.getInstance();
+
+        Set<Map.Entry<Unit, Unit>> entries = updates.entrySet();
+        for (Map.Entry<Unit, Unit> e : entries) {
+            Unit oldUnit = e.getKey();
+            Unit newUnit = e.getValue();
+            Document targetLine = findLine(content, oldUnit.toString());
+            if (targetLine == null) {
+                continue;
+            }
+
+            targetLine.put(UNIT_STRING, newUnit.toString());
+            List<String> constants = targetLine.getList(CONSTANTS, String.class);
+            if (constants == null) {
+                continue;
+            }
+
+            int newUnitType = getUnitType(newUnit);
+            constants = slicer.getConstants(newUnit, newUnitType);
+            targetLine.put(CONSTANTS, constants);
+        }
+    }
+
+    public ArrayList<Document> getUnreachableLines(ArrayList<Document> slices) {
+        ProgramSlicer slicer = ProgramSlicer.getInstance();
+        int slicesSize = slices.size();
+        HashMap<Value, String> targetValueMap = new HashMap<>();
+        ArrayList<Document> lines = new ArrayList<>();
+
+        for (int i = 0; i < slicesSize; i++) {
+            Document slice = slices.get(i);
+            String nodeId = slice.getString(NODE_ID);
+            String callerName = slice.getString(CALLER_NAME);
+            String targetStatement = slice.getString(TARGET_STATEMENT);
+            String targetSignature = (i == 0) ? targetStatement : callerName;
+
+            ArrayList<Unit> wholeUnit = codeInspector.getWholeUnit(callerName);
+            ArrayList<Unit> units = slicer.getUnits(nodeId);
+            ArrayList<Unit> unreachables = getUnreachableUnits(wholeUnit, units, targetSignature, targetValueMap);
+            ArrayList<String> unitStrings = new ArrayList<>();
+            for (Unit u : unreachables) {
+                unitStrings.add(u.toString());
+            }
+
+            List<Document> content = slice.getList(CONTENT, Document.class);
+            for (Document l : content) {
+                String unitStr = l.getString(UNIT_STRING);
+                if (!unitStrings.contains(unitStr)) {
+                    continue;
+                }
+
+                lines.add(l);
+            }
+        }
+
+        return lines;
+    }
+
+    public HashMap<Unit, Unit> getInterpretedUnits(ArrayList<Document> slices) {
+        ProgramSlicer slicer = ProgramSlicer.getInstance();
+        HashMap<Value, Unit> targetValueMap = new HashMap<>();
+        HashMap<Unit, Unit> updates = new HashMap<>();
+
+        for (Document s : slices) {
+            String nodeId = s.getString(NODE_ID);
+            ArrayList<Unit> units = slicer.getUnits(nodeId);
+            HashMap<Unit, Unit> tempUpdates = getInterpretedUnits(units, targetValueMap);
+            updates.putAll(tempUpdates);
+        }
+
+        return updates;
     }
 
     private ArrayList<Unit> getUnreachableUnits(ArrayList<Unit> wholeUnit, ArrayList<Unit> units, String targetSignature, HashMap<Value, String> targetValueMap) {
@@ -76,17 +161,26 @@ public class SliceOptimizer {
             }
 
             if ((unitType & INVOKE) == INVOKE) {
-                ArrayList<Value> paramValues = getParamValues(unit, unitType);
-                if (paramValues.isEmpty()) {
-                    continue;
-                }
-
                 String unitStr = unit.toString();
                 String signature = getSignature(unitStr);
+                String className = getClassName(signature);
+                String methodName = getMethodName(signature);
+                if (className.equals("java.lang.String") && methodName.equals("isEmpty")) {
+                    Value localValue = getLocalValue(unit, unitType);
+                    String valueStr = targetValueMap.remove(localValue);
+                    if (valueStr == null) {
+                        continue;
+                    }
+
+                    Value leftValue = getLeftValue(unit, unitType);
+                    targetValueMap.put(leftValue, String.valueOf(valueStr.equals("\"\"") ? 1 : 0));
+                }
+
                 if (targetSignature == null || !targetSignature.equals(signature)) {
                     continue;
                 }
 
+                ArrayList<Value> paramValues = getParamValues(unit, unitType);
                 for (int j = 0; j < paramValues.size(); j++) {
                     Value value = paramValues.get(j);
                     String valueStr = convertToStr(value);
@@ -188,6 +282,30 @@ public class SliceOptimizer {
         }
 
         return flag ? 1 : 0;
+    }
+
+    private String replaceString(String target, String oldChar, String newChar) {
+        target = target.replace("\"", "");
+        oldChar = oldChar.replace("\"", "");
+        newChar = newChar.replace("\"", "");
+        target = target.replace(oldChar, newChar);
+
+        return target;
+    }
+
+    private Document findLine(List<Document> content, String targetUnitStr) {
+        if (targetUnitStr == null) {
+            return null;
+        }
+
+        for (Document l : content) {
+            String unitStr = l.getString(UNIT_STRING);
+            if (unitStr.contains(targetUnitStr)) {
+                return l;
+            }
+        }
+
+        return null;
     }
 
     private static class Holder {

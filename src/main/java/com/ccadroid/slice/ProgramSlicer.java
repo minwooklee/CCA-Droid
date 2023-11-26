@@ -26,7 +26,6 @@ public class ProgramSlicer {
     private static final int LOWER_LEVEL = Integer.parseInt(Configuration.getProperty("slice.lowerLevel"));
     private final CodeInspector codeInspector;
     private final SlicingCriteriaGenerator slicingCriteriaGenerator;
-    private final SliceInterpreter sliceInterpreter;
     private final SliceOptimizer sliceOptimizer;
     private final SliceDatabase sliceDatabase;
     private final SliceMerger sliceMerger;
@@ -38,7 +37,6 @@ public class ProgramSlicer {
     public ProgramSlicer() {
         codeInspector = CodeInspector.getInstance();
         slicingCriteriaGenerator = SlicingCriteriaGenerator.getInstance();
-        sliceInterpreter = SliceInterpreter.getInstance();
         sliceOptimizer = SliceOptimizer.getInstance();
         sliceDatabase = SliceDatabase.getInstance();
         sliceMerger = SliceMerger.getInstance();
@@ -62,6 +60,58 @@ public class ProgramSlicer {
             SlicingCriterion sc = deque.poll();
             sliceStatement(sc);
         }
+    }
+
+    public ArrayList<String> getConstants(Unit unit, int unitType) {
+        ArrayList<String> constants = new ArrayList<>();
+
+        if ((unitType & INVOKE) == INVOKE) {
+            String signature = getSignature(unit);
+            String className = getClassName(signature);
+            String methodName = getMethodName(signature);
+            if (className.equals("java.lang.System") && methodName.equals("arraycopy")) {
+                return constants;
+            }
+
+            if (className.startsWith("android")) {
+                return constants;
+            }
+
+            Value localValue = getLocalValue(unit, unitType);
+            if (localValue != null && newTargetVariables.contains(localValue)) {
+                return constants;
+            }
+
+            ArrayList<String> paramTypes = getParamTypes(signature);
+            ArrayList<Value> paramValues = getParamValues(unit, unitType);
+            int size = paramTypes.size();
+            for (int i = 0; i < size; i++) {
+                String paramType = paramTypes.get(i);
+                if (!paramType.contains("byte") && !paramType.contains("int") && !paramType.contains("long") && !paramType.contains("float") && !paramType.contains("double") && !paramType.contains("char") && !paramType.contains("String") && !paramType.contains("Object")) {
+                    continue;
+                }
+
+                Value paramValue = paramValues.get(i);
+                String valueStr = convertToStr(paramValue);
+                if (isVariableStr(valueStr)) {
+                    continue;
+                }
+
+                if (!valueStr.equals("null")) {
+                    constants.add(valueStr);
+                }
+            }
+        } else if (unitType == ASSIGN_VARIABLE_CONSTANT || unitType == ASSIGN_SIGNATURE_CONSTANT || unitType == RETURN_VALUE) {
+            Value value = getRightValue(unit, unitType);
+            if (value != null) {
+                String valueStr = convertToStr(value);
+                if (!isVariableStr(valueStr) && !valueStr.equals("null")) {
+                    constants.add(valueStr);
+                }
+            }
+        }
+
+        return constants;
     }
 
     public ArrayList<Unit> getUnits(String nodeId) {
@@ -311,11 +361,11 @@ public class ProgramSlicer {
             addLine(unit, unitType, callerName, lineNum, content);
         }
 
-        ArrayList<Unit> unreachableUnits = sliceOptimizer.getUnreachableUnits(wholeUnit, units);
-        removeTempSlicingCriteria(unreachableUnits);
+        ArrayList<Unit> unreachables = sliceOptimizer.getUnreachableUnits(wholeUnit, units);
+        units.removeAll(unreachables);
 
-        units.removeAll(unreachableUnits);
-        sliceInterpreter.interpret(units, content);
+        HashMap<Unit, Unit> updates = sliceOptimizer.getInterpretedUnits(units, new HashMap<>());
+        sliceOptimizer.updateLines(updates, content);
         unitsMap.put(nodeId, units);
 
         ArrayList<String> targetParamNumbers = slicingCriterion.getTargetParamNumbers();
@@ -324,6 +374,8 @@ public class ProgramSlicer {
         }
 
         addTempSlicingCriteria(units);
+        removeTempSlicingCriteria(unreachables);
+
         sliceDatabase.insert(nodeId, groupId, callerName, targetStatement, startUnitIndex, convertToStrings(startTargetVariables), content);
     }
 
@@ -496,58 +548,6 @@ public class ProgramSlicer {
         }
 
         slice.add(0, line);
-    }
-
-    private ArrayList<String> getConstants(Unit unit, int unitType) {
-        ArrayList<String> constants = new ArrayList<>();
-
-        if ((unitType & INVOKE) == INVOKE) {
-            String signature = getSignature(unit);
-            String className = getClassName(signature);
-            String methodName = getMethodName(signature);
-            if (className.equals("java.lang.System") && methodName.equals("arraycopy")) {
-                return constants;
-            }
-
-            if (className.startsWith("android")) {
-                return constants;
-            }
-
-            Value localValue = getLocalValue(unit, unitType);
-            if (localValue != null && newTargetVariables.contains(localValue)) {
-                return constants;
-            }
-
-            ArrayList<String> paramTypes = getParamTypes(signature);
-            ArrayList<Value> paramValues = getParamValues(unit, unitType);
-            int size = paramTypes.size();
-            for (int i = 0; i < size; i++) {
-                String paramType = paramTypes.get(i);
-                if (!paramType.contains("byte") && !paramType.contains("int") && !paramType.contains("long") && !paramType.contains("float") && !paramType.contains("double") && !paramType.contains("char") && !paramType.contains("String") && !paramType.contains("Object")) {
-                    continue;
-                }
-
-                Value paramValue = paramValues.get(i);
-                String valueStr = convertToStr(paramValue);
-                if (isVariableStr(valueStr)) {
-                    continue;
-                }
-
-                if (!valueStr.equals("null")) {
-                    constants.add(valueStr);
-                }
-            }
-        } else if (unitType == ASSIGN_VARIABLE_CONSTANT || unitType == ASSIGN_SIGNATURE_CONSTANT || unitType == RETURN_VALUE) {
-            Value value = getRightValue(unit, unitType);
-            if (value != null) {
-                String valueStr = convertToStr(value);
-                if (!isVariableStr(valueStr) && !valueStr.equals("null")) {
-                    constants.add(valueStr);
-                }
-            }
-        }
-
-        return constants;
     }
 
     private void removeTempSlicingCriteria(ArrayList<Unit> unreachableUnits) {
