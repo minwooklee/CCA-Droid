@@ -210,6 +210,10 @@ public class RuleChecker {
 
         if (conditions instanceof JSONObject) {
             JSONObject obj = (JSONObject) conditions;
+            int hasSchemeType = 0;
+            int hasAlgorithm = 0;
+            int hasSignature = 0;
+            int hasConstant = 0;
 
             for (Document s : slices) {
                 List<Document> content = s.getList(CONTENT, Document.class);
@@ -218,6 +222,7 @@ public class RuleChecker {
                 if (obj.has(TARGET_SCHEME_TYPES)) {
                     String unitStr = checkSchemeTypes(content, obj);
                     if (unitStr != null) {
+                        hasSchemeType = 1;
                         unitStrings.add(unitStr);
                     }
                 }
@@ -225,6 +230,7 @@ public class RuleChecker {
                 if (obj.has(TARGET_ALGORITHMS)) {
                     String unitStr = checkAlgorithms(content, obj, targetAlgorithms);
                     if (unitStr != null) {
+                        hasAlgorithm = 1;
                         unitStrings.add(unitStr);
                     }
                 }
@@ -232,6 +238,7 @@ public class RuleChecker {
                 if (obj.has(TARGET_SIGNATURES)) {
                     String unitStr = checkSignatures(content, obj);
                     if (unitStr != null) {
+                        hasSignature = 1;
                         unitStrings.add(unitStr);
                     }
                 }
@@ -239,22 +246,32 @@ public class RuleChecker {
                 if (obj.has(TARGET_CONSTANT)) {
                     String unitStr = checkConstant(s, content, obj, targetSignatures);
                     if (unitStr != null) {
+                        hasConstant = 1;
                         unitStrings.add(unitStr);
                     }
 
                     LinkedHashSet<String> tempStrings = checkArray(content, obj, targetSignatures);
-                    if (tempStrings != null) {
+                    if (tempStrings != null && !tempStrings.isEmpty()) {
+                        hasConstant = 1;
                         unitStrings.addAll(tempStrings);
                     }
                 }
 
-                if (!unitStrings.isEmpty()) {
-                    String callerName = getCallerName(s);
-                    map.put(callerName, unitStrings);
+                if (unitStrings.isEmpty()) {
+                    continue;
                 }
+
+                String callerName = getCallerName(s);
+                LinkedHashSet<String> targetStrings = map.containsKey(callerName) ? map.get(callerName) : new LinkedHashSet<>();
+                targetStrings.addAll(unitStrings);
+                map.put(callerName, targetStrings);
             }
 
-            removeUnsatisfiedItems(obj, map);
+            int count = hasSchemeType + hasAlgorithm + hasSignature + hasConstant;
+            int targetCount = getTargetCount(obj);
+            if (count != targetCount) {
+                map.clear();
+            }
         } else {
             JSONArray arr = (JSONArray) conditions;
 
@@ -299,10 +316,14 @@ public class RuleChecker {
                     }
                 }
 
-                if (!unitStrings.isEmpty()) {
-                    String callerName = getCallerName(s);
-                    map.put(callerName, unitStrings);
+                if (unitStrings.isEmpty()) {
+                    continue;
                 }
+
+                String callerName = getCallerName(s);
+                LinkedHashSet<String> targetStrings = map.containsKey(callerName) ? map.get(callerName) : new LinkedHashSet<>();
+                targetStrings.addAll(unitStrings);
+                map.put(callerName, targetStrings);
             }
         }
 
@@ -509,6 +530,8 @@ public class RuleChecker {
             List<String> targetVariables = slice.getList(TARGET_VARIABLES, String.class);
             String targetVariable = targetVariables.get(1);
             extractLines(content, targetVariable, null, null, targetLines);
+        } else {
+            targetLines.addAll(content);
         }
 
         if (targetLines.isEmpty()) {
@@ -695,25 +718,25 @@ public class RuleChecker {
         return callerName;
     }
 
-    private void removeUnsatisfiedItems(JSONObject obj, HashMap<String, LinkedHashSet<String>> map) {
-        int count = obj.length();
-        if (obj.has(TARGET_CONSTANT_SIZE)) {
-            count--;
+    private int getTargetCount(JSONObject obj) {
+        int count = 0;
+        if (obj.has(TARGET_SCHEME_TYPES)) {
+            count++;
         }
 
-        if (obj.has(TARGET_CONSTANT_LENGTH)) {
-            count--;
+        if (obj.has(TARGET_ALGORITHMS)) {
+            count++;
         }
 
-        HashMap<String, LinkedHashSet<String>> tempMap = new HashMap<>(map);
-        Set<Map.Entry<String, LinkedHashSet<String>>> entries = tempMap.entrySet();
-        for (Map.Entry<String, LinkedHashSet<String>> e : entries) {
-            String callerName = e.getKey();
-            LinkedHashSet<String> unitStrings = e.getValue();
-            if ((entries.size() == 1 && count > unitStrings.size()) || (entries.size() > 1 && count > entries.size())) {
-                map.remove(callerName);
-            }
+        if (obj.has(TARGET_SIGNATURES)) {
+            count++;
         }
+
+        if (obj.has(TARGET_CONSTANT)) {
+            count++;
+        }
+
+        return count;
     }
 
     private void printResult(String ruleId, String description, String callerName, String targetStatement, HashMap<String, LinkedHashSet<String>> misusedLinesMap) {

@@ -138,6 +138,10 @@ public class SliceOptimizer {
         for (Document s : slices) {
             String nodeId = s.getString(NODE_ID);
             ArrayList<Unit> units = slicer.getUnits(nodeId);
+            if (units == null) {
+                continue;
+            }
+
             HashMap<Unit, Unit> tempUpdates = getInterpretedUnits(units, targetValueMap);
             updates.putAll(tempUpdates);
         }
