@@ -99,6 +99,7 @@ public class ApkParser {
             }
         } catch (IOException | ParserConfigurationException | SAXException e) {
             System.out.println("[*] ERROR : Cannot parse AndroidManifest.xml of this apk!");
+            System.exit(1);
         }
     }
 

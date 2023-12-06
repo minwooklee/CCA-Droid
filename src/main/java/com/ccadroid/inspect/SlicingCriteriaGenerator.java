@@ -139,7 +139,7 @@ public class SlicingCriteriaGenerator {
                     String signature = getSignature(unitStr);
                     ArrayList<String> paramTypes = getParamTypes(signature);
                     ArrayList<Value> paramValues = getParamValues(unit, unitType);
-                    if ((!targetParamNumbers.isEmpty() && paramTypes.isEmpty()) || (targetParamNumbers.isEmpty() && !paramTypes.isEmpty())) {
+                    if (targetParamNumbers.isEmpty() && !paramTypes.isEmpty()) {
                         continue;
                     }
 

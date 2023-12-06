@@ -23,12 +23,13 @@ public class SliceDatabase {
         collection = database.getCollection(packageName);
     }
 
-    public void insert(String nodeId, String groupId, String callerName, String targetStatement, int startUnitIndex, ArrayList<String> targetVariables, ArrayList<Document> content) {
+    public void insert(String nodeId, String groupId, String callerName, String targetStatement, int startUnitIndex, ArrayList<String> targetParamNumbers, ArrayList<String> targetVariables, ArrayList<Document> content) {
         Document document = new Document();
         document.append(NODE_ID, nodeId);
         document.append(GROUP_ID, groupId);
         document.append(CALLER_NAME, callerName);
         document.append(TARGET_STATEMENT, targetStatement);
+        document.append(TARGET_PARAM_NUMBERS, targetParamNumbers);
         document.append(START_UNIT_INDEX, startUnitIndex);
         document.append(TARGET_VARIABLES, targetVariables);
         document.append(CONTENT, content);

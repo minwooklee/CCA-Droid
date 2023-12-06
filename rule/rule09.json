@@ -11,7 +11,7 @@
 		"description": "This method uses short size RSA key",
 		"conditions": {
 			"targetConstant": ".*",
-			"targetConstantSize": "(gcd(x,512)==512) & ((x/512)<4)"
+			"targetConstantSize": "(x>=512 & gcd(x,512)==512) & ((x/512)<4)"
 		}
 	},
 	"secureRule": {
@@ -19,7 +19,7 @@
 		"description": "This method uses enough size RSA key",
 		"conditions": {
 			"targetConstant": ".*",
-			"targetConstantSize": "(gcd(x,512)==512) & ((x/512)>=4)"
+			"targetConstantSize": "(x>=512 & gcd(x,512)==512) & ((x/512)>=4)"
 		}
 	}
 }

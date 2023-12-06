@@ -105,7 +105,7 @@ public class ProgramSlicer {
             Value value = getRightValue(unit, unitType);
             if (value != null) {
                 String valueStr = convertToStr(value);
-                if (!isVariableStr(valueStr) && !valueStr.equals("null")) {
+                if (!isVariableStr(valueStr) && !valueStr.equals("null") && !valueStr.contains("class \"")) {
                     constants.add(valueStr);
                 }
             }
@@ -142,6 +142,7 @@ public class ProgramSlicer {
         Unit startUnit = reversedUnits.get(startUnitIndex);
         int startUnitType = getUnitType(startUnit);
         int startLineNum = wholeUnitCount - startUnitIndex;
+        String startUnitPattern = ((startUnitType & INVOKE) == INVOKE) ? getSignature(startUnit) : ((startUnitType & RETURN) == RETURN) ? "return" : startUnit.toString();
         HashMap<Integer, ArrayList<Unit>> switchTargetUnitsMap = codeInspector.getTargetUnitsMap(callerName);
         Set<Map.Entry<Integer, ArrayList<Unit>>> switchTargetUnitSet = (switchTargetUnitsMap == null) ? null : switchTargetUnitsMap.entrySet();
 
@@ -169,6 +170,10 @@ public class ProgramSlicer {
             }
 
             String unitStr = unit.toString();
+            if (((unitType & INVOKE) == INVOKE && unitStr.contains(startUnitPattern)) || ((unitType & RETURN) == RETURN && unitStr.startsWith(startUnitPattern))) {
+                continue;
+            }
+
             int lineNum = wholeUnitCount - i;
             if (unitType == IF) {
                 if (codeInspector.isLoopStatement(unit, unitType, reversedUnits)) {
@@ -249,6 +254,10 @@ public class ProgramSlicer {
                         addTargetVariable(newValue, newTargetVariables);
                     } else if (className.equals("android.util.Log") || className.equals("kotlin.jvm.internal.Intrinsics")) {
                         continue;
+                    } else if (targetStatement.equals("<javax.crypto.Mac: void doFinal(byte[],int)>") &&
+                            className.equals("javax.crypto.Mac") && methodName.equals("update")) {
+                        Value newValue = paramValues.get(0);
+                        addTargetVariable(newValue, newTargetVariables);
                     } else {
                         Value localValue = getLocalValue(unit, unitType);
                         if (localValue != null) {
@@ -376,7 +385,7 @@ public class ProgramSlicer {
         addTempSlicingCriteria(units);
         removeTempSlicingCriteria(unreachables);
 
-        sliceDatabase.insert(nodeId, groupId, callerName, targetStatement, startUnitIndex, convertToStrings(startTargetVariables), content);
+        sliceDatabase.insert(nodeId, groupId, callerName, targetStatement, startUnitIndex, targetParamNumbers, convertToStrings(startTargetVariables), content);
     }
 
     private int getSwitchUnitIndex(Unit unit, Set<Map.Entry<Integer, ArrayList<Unit>>> switchTargetUnitSet) {
@@ -553,6 +562,10 @@ public class ProgramSlicer {
     private void removeTempSlicingCriteria(ArrayList<Unit> unreachableUnits) {
         for (Unit u : unreachableUnits) {
             HashSet<SlicingCriterion> tempSlicingCriteria = tempSlicingCriteriaMap.remove(u);
+            if (tempSlicingCriteria == null) {
+                continue;
+            }
+
             deque.removeAll(tempSlicingCriteria);
         }
     }

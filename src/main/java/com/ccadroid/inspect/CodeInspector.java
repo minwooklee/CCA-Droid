@@ -170,14 +170,20 @@ public class CodeInspector {
 
         if (unitType == IF) {
             int targetUnitIndex = wholeUnit.indexOf(targetUnit);
-            Unit nextUnit = wholeUnit.get(targetUnitIndex + 1);
-            int nextUnitType = getUnitType(nextUnit);
+            Unit prevUnit = wholeUnit.get(targetUnitIndex + 1);
+            int prevUnitType = getUnitType(prevUnit);
+            if (prevUnitType == GOTO) {
+                targetUnit = getTargetUnit(prevUnit, prevUnitType);
+            }
 
-            return isLoopStatement(nextUnit, nextUnitType, wholeUnit);
+            return (unit == targetUnit);
         } else {
             int targetUnitType = getUnitType(targetUnit);
+            Unit tempUnit = getTargetUnit(targetUnit, targetUnitType);
+            int tempUnitIndex = wholeUnit.indexOf(tempUnit);
+            Unit prevUnit = wholeUnit.get(tempUnitIndex + 1);
 
-            return (targetUnitType == IF);
+            return (unit == prevUnit);
         }
     }
 

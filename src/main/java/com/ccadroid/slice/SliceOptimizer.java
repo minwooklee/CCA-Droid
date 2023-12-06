@@ -267,8 +267,14 @@ public class SliceOptimizer {
             return -1;
         }
 
-        int n1 = Integer.parseInt(targetValueMap.get(leftValue));
-        int n2 = Integer.parseInt((targetValueMap.containsKey(rightValue) ? targetValueMap.get(rightValue) : convertToStr(rightValue)));
+        String leftValueStr = targetValueMap.get(leftValue);
+        String rightValueStr = targetValueMap.containsKey(rightValue) ? targetValueMap.get(rightValue) : convertToStr(rightValue);
+        if (leftValueStr == null || rightValueStr == null || isVariableStr(leftValueStr) || isVariableStr(rightValueStr)) {
+            return -1;
+        }
+
+        int n1 = Integer.parseInt(leftValueStr);
+        int n2 = Integer.parseInt(rightValueStr);
 
         boolean flag;
         if (conditionValue instanceof JGeExpr) {

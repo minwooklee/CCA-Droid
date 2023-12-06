@@ -87,7 +87,16 @@ public class RuleChecker {
         ArrayList<Document> tempContent = new ArrayList<>(content);
         Collections.reverse(tempContent);
 
+        Document lastLine = tempContent.get(0);
+        if (!targetLines.contains(lastLine)) {
+            targetLines.add(lastLine);
+        }
+
         for (Document l : tempContent) {
+            if (l.equals(lastLine)) {
+                continue;
+            }
+
             String unitStr = l.getString(UNIT_STRING);
             if (targetVariable != null && !unitStr.contains(targetVariable)) {
                 continue;
@@ -104,6 +113,15 @@ public class RuleChecker {
             targetLines.add(0, l);
             int unitType = l.getInteger(UNIT_TYPE);
             if ((unitType & INVOKE) == INVOKE) {
+                String signature = getSignature(unitStr);
+                String className = getClassName(signature);
+                String methodName = getMethodName(signature);
+                if ((className.equals("java.util.Arrays") && methodName.equals("copyOf")) || (className.equals("java.lang.System") && methodName.equals("arraycopy"))) {
+                    ArrayList<String> paramValues = getParamValues(unitStr);
+                    targetVariable = paramValues.get(0);
+                    continue;
+                }
+
                 if (targetSignature != null && unitStr.contains(targetSignature)) {
                     ArrayList<String> paramValues = getParamValues(unitStr);
                     targetVariable = paramValues.get(Integer.parseInt(targetParamNum));
@@ -216,12 +234,14 @@ public class RuleChecker {
             int hasConstant = 0;
 
             for (Document s : slices) {
+                String callerName = getCallerName(s);
+                boolean hasCipherAndMac = hasCipherAndMac(callerName);
                 List<Document> content = s.getList(CONTENT, Document.class);
                 LinkedHashSet<String> unitStrings = new LinkedHashSet<>();
 
                 if (obj.has(TARGET_SCHEME_TYPES)) {
-                    String unitStr = checkSchemeTypes(content, obj);
-                    if (unitStr != null) {
+                    String unitStr = checkSchemeTypes(s, content, obj);
+                    if (hasCipherAndMac && unitStr != null) {
                         hasSchemeType = 1;
                         unitStrings.add(unitStr);
                     }
@@ -229,7 +249,7 @@ public class RuleChecker {
 
                 if (obj.has(TARGET_ALGORITHMS)) {
                     String unitStr = checkAlgorithms(content, obj, targetAlgorithms);
-                    if (unitStr != null) {
+                    if (!hasCipherAndMac && unitStr != null) {
                         hasAlgorithm = 1;
                         unitStrings.add(unitStr);
                     }
@@ -261,7 +281,6 @@ public class RuleChecker {
                     continue;
                 }
 
-                String callerName = getCallerName(s);
                 LinkedHashSet<String> targetStrings = map.containsKey(callerName) ? map.get(callerName) : new LinkedHashSet<>();
                 targetStrings.addAll(unitStrings);
                 map.put(callerName, targetStrings);
@@ -276,12 +295,14 @@ public class RuleChecker {
             JSONArray arr = (JSONArray) conditions;
 
             for (Document s : slices) {
+                String callerName = getCallerName(s);
+                boolean hasCipherAndMac = hasCipherAndMac(callerName);
                 List<Document> content = s.getList(CONTENT, Document.class);
                 LinkedHashSet<String> unitStrings = new LinkedHashSet<>();
 
                 Object obj1 = getValue(arr, TARGET_SCHEME_TYPES);
                 if (obj1 != null) {
-                    String unitStr = checkSchemeTypes(content, obj1);
+                    String unitStr = checkSchemeTypes(s, content, obj1);
                     if (unitStr != null) {
                         unitStrings.add(unitStr);
                     }
@@ -290,7 +311,7 @@ public class RuleChecker {
                 Object obj2 = getValue(arr, TARGET_ALGORITHMS);
                 if (obj2 != null) {
                     String unitStr = checkAlgorithms(content, obj2, targetAlgorithms);
-                    if (unitStr != null) {
+                    if (!hasCipherAndMac && unitStr != null) {
                         unitStrings.add(unitStr);
                     }
                 }
@@ -320,7 +341,6 @@ public class RuleChecker {
                     continue;
                 }
 
-                String callerName = getCallerName(s);
                 LinkedHashSet<String> targetStrings = map.containsKey(callerName) ? map.get(callerName) : new LinkedHashSet<>();
                 targetStrings.addAll(unitStrings);
                 map.put(callerName, targetStrings);
@@ -373,14 +393,17 @@ public class RuleChecker {
         }
     }
 
-    private String checkSchemeTypes(List<Document> content, Object object) {
+    private String checkSchemeTypes(Document slice, List<Document> content, Object object) {
         if (object == null) {
             return null;
         }
 
-        JSONArray types = ((JSONObject) object).getJSONArray(TARGET_SCHEME_TYPES);
+        String targetStatement = slice.getString(TARGET_STATEMENT);
+        String targetClassName = getClassName(targetStatement);
+        JSONArray types = (object instanceof JSONObject) ? ((JSONObject) object).getJSONArray(TARGET_SCHEME_TYPES) : (JSONArray) object;
         List<Object> typeAsList = types.toList();
 
+        String targetSignature = null;
         ArrayList<String> targetParamNumbers = new ArrayList<>();
         HashSet<String> targetVariables = new HashSet<>();
 
@@ -389,6 +412,7 @@ public class RuleChecker {
             String unitStr = line.getString(UNIT_STRING);
             int unitType = line.getInteger(UNIT_TYPE);
             if (unitType == PARAMETER) {
+                targetSignature = line.getString(CALLER_NAME);
                 String paramNum = getParamNumber(unitStr, unitType);
                 targetParamNumbers.add(paramNum);
                 continue;
@@ -401,7 +425,7 @@ public class RuleChecker {
             String signature = getSignature(unitStr);
             String className = getClassName(signature);
             String methodName = getMethodName(signature);
-            if (className.equals("javax.crypto.Cipher") && ((methodName.equals("update") || methodName.equals("doFinal")))) {
+            if (targetClassName.equals("javax.crypto.Mac") && className.equals("javax.crypto.Cipher") && ((methodName.equals("update") || methodName.equals("doFinal")))) {
                 ArrayList<String> paramValues = getParamValues(unitStr);
                 if (targetVariables.isEmpty() && !paramValues.isEmpty()) {
                     targetVariables.add(paramValues.get(0));
@@ -420,8 +444,16 @@ public class RuleChecker {
 
                 targetVariables.remove(paramValues.get(2));
                 targetVariables.add(paramValues.get(0));
-            } else if (className.equals("javax.crypto.Mac") && ((methodName.equals("update") || methodName.equals("doFinal")))) {
+            } else if (targetClassName.equals("javax.crypto.Cipher") && className.equals("javax.crypto.Mac")) {
                 ArrayList<String> paramValues = getParamValues(unitStr);
+                if (methodName.equals("doFinal") && paramValues.size() == 2) {
+                    continue;
+                }
+
+                if (!methodName.equals("update") && !methodName.equals("doFinal")) {
+                    continue;
+                }
+
                 if (targetVariables.isEmpty() && !paramValues.isEmpty()) {
                     targetVariables.add(paramValues.get(0));
                     continue;
@@ -431,7 +463,8 @@ public class RuleChecker {
                 if (targetVariables.contains(targetValueStr)) {
                     return unitStr;
                 }
-            } else if (!targetParamNumbers.isEmpty()) {
+            } else if (targetSignature != null && unitStr.contains(targetSignature) && !targetParamNumbers.isEmpty()) {
+                targetSignature = null;
                 ArrayList<String> paramValues = getParamValues(unitStr);
                 for (String n : targetParamNumbers) {
                     int index = Integer.parseInt(n);
@@ -478,17 +511,20 @@ public class RuleChecker {
                 }
 
                 for (int i = 0; i < size; i++) {
+                    boolean flag;
                     String algorithm = arr.getString(i);
-                    Pattern pattern;
                     if (algorithm.contains("-")) {
                         String[] strArr = algorithm.split("-");
-                        pattern = Pattern.compile("(?i)^(" + strArr[0] + ")?(?!" + strArr[1] + ")?$");
+                        Pattern pattern = Pattern.compile("(?i)^(" + strArr[0] + ")?(/.*)?$");
+                        Matcher matcher = pattern.matcher(c);
+                        flag = matcher.matches() && !c.toLowerCase().contains(strArr[1]);
                     } else {
-                        pattern = Pattern.compile("(?i)^(" + algorithm + ")?(/.*)?$");
+                        Pattern pattern = Pattern.compile("(?i)^(" + algorithm + ")?(/.*)?$");
+                        Matcher matcher = pattern.matcher(c);
+                        flag = matcher.matches();
                     }
 
-                    Matcher matcher = pattern.matcher(c);
-                    if (matcher.matches()) {
+                    if (flag) {
                         return l.getString(UNIT_STRING);
                     }
                 }
@@ -526,12 +562,10 @@ public class RuleChecker {
         List<Document> targetLines = new ArrayList<>();
 
         List<String> targetParamNumbers = slice.getList(TARGET_PARAM_NUMBERS, String.class);
-        if (targetParamNumbers != null && targetParamNumbers.contains("-1")) {
+        if (targetParamNumbers != null) {
             List<String> targetVariables = slice.getList(TARGET_VARIABLES, String.class);
-            String targetVariable = targetVariables.get(1);
+            String targetVariable = (targetParamNumbers.contains("-1")) ? targetVariables.get(1) : targetVariables.get(0);
             extractLines(content, targetVariable, null, null, targetLines);
-        } else {
-            targetLines.addAll(content);
         }
 
         if (targetLines.isEmpty()) {
@@ -567,7 +601,7 @@ public class RuleChecker {
             List<String> constants = l.getList(CONSTANTS, String.class);
             for (String c : constants) {
                 c = c.replace("\"", "");
-                if (c.endsWith("f") || c.endsWith("F")) {
+                if (c.contains(".") && (c.endsWith("f") || c.endsWith("F"))) {
                     c = String.valueOf((int) Double.parseDouble(c));
                 }
 
@@ -590,7 +624,9 @@ public class RuleChecker {
 
                 if (size != null) {
                     RSAKey rsaKey = convertToRSAKey(c);
-                    if (rsaKey != null) {
+                    if (rsaKey == null) {
+                        c = (isNumber(c)) ? c : String.valueOf(c.length());
+                    } else {
                         BigInteger modulus = rsaKey.getModulus();
                         c = String.valueOf(modulus);
                     }
@@ -622,12 +658,14 @@ public class RuleChecker {
             return oldUnitStrings;
         }
 
-        String oldUnitStr = new ArrayList<>(oldUnitStrings).get(0);
         String newUnitStr = findSecureUnitString(content, targetSignatures);
-        LinkedHashSet<String> newUnitStrings = new LinkedHashSet<>();
-        if (newUnitStr != null) {
-            newUnitStrings.add(newUnitStr);
+        if (newUnitStr == null) {
+            return oldUnitStrings;
         }
+
+        String oldUnitStr = new ArrayList<>(oldUnitStrings).get(0);
+        LinkedHashSet<String> newUnitStrings = new LinkedHashSet<>();
+        newUnitStrings.add(newUnitStr);
 
         return findLateUnitString(content, oldUnitStr, newUnitStr) == null ? null : newUnitStrings;
     }
@@ -704,6 +742,15 @@ public class RuleChecker {
         }
 
         return null;
+    }
+
+    private boolean hasCipherAndMac(String callerName) {
+        String query1 = "{'" + "callerName" + "': '" + callerName + "', 'content.unitStr': {'$regex': 'javax.crypto.Cipher'}}";
+        String query2 = "{'" + "callerName" + "': '" + callerName + "', 'content.unitStr': {'$regex': 'javax.crypto.Mac'}}";
+        Document cipherResult = sliceDatabase.findSlice(query1);
+        Document macResult = sliceDatabase.findSlice(query2);
+
+        return cipherResult != null && macResult != null;
     }
 
     private String getCallerName(Document slice) {
