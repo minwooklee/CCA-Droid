@@ -139,9 +139,10 @@ public class SootUnit {
     public static String getSignature(String unitStr) {
         StringTokenizer tokenizer = new StringTokenizer(unitStr, ">");
         String str = tokenizer.nextToken();
+        int beginIndex = str.indexOf("<");
 
         StringBuilder buffer = new StringBuilder();
-        buffer.append(str.substring(str.indexOf("<")));
+        buffer.append(str.substring(beginIndex));
         if (unitStr.contains("<init>")) {
             buffer.append(">");
             buffer.append(tokenizer.nextToken());
@@ -156,7 +157,10 @@ public class SootUnit {
         StringTokenizer tokenizer = new StringTokenizer(signature);
         String str = tokenizer.nextToken();
 
-        return str.substring(1, str.length() - 1);
+        int beginIndex = 1;
+        int endIndex = str.length() - 1;
+
+        return str.substring(beginIndex, endIndex);
     }
 
     public static String getReturnType(String signature) {
@@ -172,11 +176,16 @@ public class SootUnit {
         tokenizer.nextToken();
         String str = tokenizer.nextToken();
 
-        return str.substring(0, str.indexOf('('));
+        int beginIndex = 0;
+        int endIndex = str.indexOf('(');
+
+        return str.substring(beginIndex, endIndex);
     }
 
     public static ArrayList<String> getParamTypes(String signature) {
-        String str = signature.substring(signature.indexOf("(") + 1, signature.length() - 2);
+        int beginIndex = signature.indexOf("(") + 1;
+        int endIndex = signature.length() - 2;
+        String str = signature.substring(beginIndex, endIndex);
 
         return convertToList(str);
     }
@@ -186,31 +195,29 @@ public class SootUnit {
             return null;
         }
 
-        Value value;
+        InstanceInvokeExpr expr;
         if ((unitType & ASSIGN) == ASSIGN) {
             Value rightValue = getRightValue(unit, unitType);
             if (rightValue == null) {
                 return null;
             }
 
-            InstanceInvokeExpr expr = (InstanceInvokeExpr) rightValue;
-            value = expr.getBase();
+            expr = (InstanceInvokeExpr) rightValue;
         } else {
             InvokeStmt stmt = (InvokeStmt) unit;
-            InstanceInvokeExpr expr = (InstanceInvokeExpr) stmt.getInvokeExpr();
-            value = expr.getBase();
+            expr = (InstanceInvokeExpr) stmt.getInvokeExpr();
         }
 
-        return value;
+        return expr.getBase();
     }
 
     public static String getLocalValue(String unitStr) {
-        int beginIndex = unitStr.indexOf("invoke");
         int endIndex = unitStr.indexOf(".<");
         if (endIndex == -1) {
             return null;
         }
 
+        int beginIndex = unitStr.indexOf("invoke");
         String str = unitStr.substring(beginIndex, endIndex);
         StringTokenizer tokenizer = new StringTokenizer(str);
         tokenizer.nextToken();
@@ -246,7 +253,9 @@ public class SootUnit {
     }
 
     public static ArrayList<String> getParamValues(String unitStr) {
-        String str = unitStr.substring(unitStr.indexOf(")>") + 3, unitStr.length() - 1);
+        int beginIndex = unitStr.indexOf(")>") + 3;
+        int endIndex = unitStr.length() - 1;
+        String str = unitStr.substring(beginIndex, endIndex);
 
         return convertToList(str);
     }
@@ -312,6 +321,7 @@ public class SootUnit {
 
     public static ArrayList<String> convertToStrings(ArrayList<Value> values) {
         ArrayList<String> strings = new ArrayList<>();
+
         for (Value v : values) {
             String s = convertToStr(v);
             strings.add(s);

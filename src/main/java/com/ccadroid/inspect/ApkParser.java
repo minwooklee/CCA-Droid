@@ -27,7 +27,7 @@ public class ApkParser {
     public void loadAPKFile(String apkPath) {
         try {
             apkFile = new ApkFile(apkPath);
-        } catch (IOException e) {
+        } catch (IOException ignored) {
             System.out.println("[*] ERROR : '" + apkPath + "' does not exist!");
             System.exit(1);
         }
@@ -97,7 +97,7 @@ public class ApkParser {
                     appComponents.add(attrValue);
                 }
             }
-        } catch (IOException | ParserConfigurationException | SAXException e) {
+        } catch (IOException | ParserConfigurationException | SAXException ignored) {
             System.out.println("[*] ERROR : Cannot parse AndroidManifest.xml of this apk!");
             System.exit(1);
         }
@@ -110,11 +110,14 @@ public class ApkParser {
                 String classType = c.getClassType();
                 String className = classType.trim();
                 className = className.replace('/', '.');
-                className = className.substring(1, className.length() - 1);
+
+                int beginIndex = 1;
+                int endIndex = className.length() - 1;
+                className = className.substring(beginIndex, endIndex);
 
                 dexClassNames.add(className);
             }
-        } catch (IOException e) {
+        } catch (IOException ignored) {
             System.out.println("[*] ERROR : Cannot get class names!");
         }
     }

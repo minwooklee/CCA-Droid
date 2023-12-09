@@ -387,9 +387,9 @@ public class RuleChecker {
             String ruleId = rule.getString(RULE_ID);
             String description = rule.getString(DESCRIPTION);
             String callerName = targetSlice.getString(CALLER_NAME);
-            String targetSignature = targetSlice.getString(TARGET_STATEMENT);
+            String targetStatement = targetSlice.getString(TARGET_STATEMENT);
 
-            printResult(ruleId, description, callerName, targetSignature, misusedLinesMap);
+            printResult(ruleId, description, callerName, targetStatement, misusedLinesMap);
         }
     }
 
@@ -465,6 +465,7 @@ public class RuleChecker {
                 }
             } else if (targetSignature != null && unitStr.contains(targetSignature) && !targetParamNumbers.isEmpty()) {
                 targetSignature = null;
+
                 ArrayList<String> paramValues = getParamValues(unitStr);
                 for (String n : targetParamNumbers) {
                     int index = Integer.parseInt(n);
@@ -496,25 +497,27 @@ public class RuleChecker {
         }
 
         JSONArray arr = (object instanceof JSONObject) ? ((JSONObject) object).getJSONArray(TARGET_ALGORITHMS) : (JSONArray) object;
+        int arrSize = arr.length();
 
         for (Document l : content) {
-            if (!l.containsKey(CONSTANTS)) {
+            List<String> constants = l.getList(CONSTANTS, String.class);
+            if (constants == null) {
                 continue;
             }
 
-            int size = arr.length();
-            List<String> constants = l.getList(CONSTANTS, String.class);
             for (String c : constants) {
                 c = c.replace("\"", "");
                 if (!isAlgorithm(c)) {
                     continue;
                 }
 
-                for (int i = 0; i < size; i++) {
+                for (int i = 0; i < arrSize; i++) {
                     boolean flag;
                     String algorithm = arr.getString(i);
-                    if (algorithm.contains("-")) {
-                        String[] strArr = algorithm.split("-");
+                    String regex = "-";
+
+                    if (algorithm.contains(regex)) {
+                        String[] strArr = algorithm.split(regex);
                         Pattern pattern = Pattern.compile("(?i)^(" + strArr[0] + ")?(/.*)?$");
                         Matcher matcher = pattern.matcher(c);
                         flag = matcher.matches() && !c.toLowerCase().contains(strArr[1]);
@@ -806,8 +809,9 @@ public class RuleChecker {
     private String getTargetVariable(String unitStr) {
         String variable = null;
 
-        if (unitStr.contains(" = ")) {
-            String[] strArr = unitStr.split(" = ");
+        String regex = " = ";
+        if (unitStr.contains(regex)) {
+            String[] strArr = unitStr.split(regex);
             variable = strArr[0];
         } else {
             ArrayList<String> paramValues = getParamValues(unitStr);
@@ -826,7 +830,7 @@ public class RuleChecker {
             return unitStr1;
         }
 
-        return line1.getString(CALLER_NAME).equals(line2.getString(CALLER_NAME)) && line1.getInteger(LINE_NUM) < line2.getInteger(LINE_NUM) ? null : unitStr1;
+        return line1.getString(CALLER_NAME).equals(line2.getString(CALLER_NAME)) && line1.getInteger(LINE_NUMBER) < line2.getInteger(LINE_NUMBER) ? null : unitStr1;
     }
 
     private Document findLine(List<Document> content, String targetUnitStr) {

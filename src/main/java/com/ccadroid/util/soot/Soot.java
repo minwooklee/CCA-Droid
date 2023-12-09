@@ -17,7 +17,7 @@ public class Soot {
     public static void initialize(String apkPath) {
         String sdkHomeDir = System.getenv("ANDROID_SDK_HOME");
         if (sdkHomeDir == null) {
-            System.err.println("Please set ANDROID_SDK_HOME environment variable!");
+            System.out.println("Please set ANDROID_SDK_HOME environment variable!");
             System.exit(1);
         }
 

@@ -98,10 +98,10 @@ public class SliceMerger {
     }
 
     private boolean isStartingParameter(ArrayList<Document> slice) {
-        Document topLine = slice.get(0);
-        int topUnitType = topLine.getInteger(UNIT_TYPE);
+        Document line = slice.get(0);
+        int unitType = line.getInteger(UNIT_TYPE);
 
-        return (topUnitType == PARAMETER);
+        return (unitType == PARAMETER);
     }
 
     private static class Holder {

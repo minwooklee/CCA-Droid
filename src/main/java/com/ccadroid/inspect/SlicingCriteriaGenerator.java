@@ -27,13 +27,10 @@ import static com.ccadroid.util.soot.SootUnit.*;
 public class SlicingCriteriaGenerator {
     private final ApkParser apkParser;
     private final CodeInspector codeInspector;
-    private final HashMap<String, SlicingCriterion> slicingCriterionMap;
 
     public SlicingCriteriaGenerator() {
         apkParser = ApkParser.getInstance();
         codeInspector = CodeInspector.getInstance();
-
-        slicingCriterionMap = new HashMap<>();
     }
 
     public static SlicingCriteriaGenerator getInstance() {
@@ -187,16 +184,10 @@ public class SlicingCriteriaGenerator {
             slicingCriterion.setTargetUnitIndex(i);
             slicingCriterion.setTargetVariables(new ArrayList<>(targetVariables));
 
-            String nodeId = String.valueOf(slicingCriterion.hashCode());
-            slicingCriterionMap.put(nodeId, slicingCriterion);
             slicingCriteria.add(slicingCriterion);
         }
 
         return slicingCriteria;
-    }
-
-    public SlicingCriterion getSlicingCriterion(String nodeId) {
-        return slicingCriterionMap.get(nodeId);
     }
 
     private ArrayList<SlicingCriterion> getSlicingCandidates(File ruleFileDir) {
@@ -235,6 +226,7 @@ public class SlicingCriteriaGenerator {
                     SlicingCriterion slicingCriterion = new SlicingCriterion();
                     slicingCriterion.setTargetStatement(signature);
                     slicingCriterion.setTargetParamNumbers(paramNumbers);
+
                     candidates.add(slicingCriterion);
                 }
 
@@ -312,11 +304,11 @@ public class SlicingCriteriaGenerator {
         return count > 1;
     }
 
-    private boolean isDuplicatedCriterion(String targetSignature, ArrayList<Value> targetVariables, ArrayList<SlicingCriterion> slicingCriteria) {
+    private boolean isDuplicatedCriterion(String targetStatement, ArrayList<Value> targetVariables, ArrayList<SlicingCriterion> slicingCriteria) {
         for (SlicingCriterion sc : slicingCriteria) {
-            String signature = sc.getTargetStatement();
+            String statement = sc.getTargetStatement();
             ArrayList<Value> variables = sc.getTargetVariables();
-            if (targetSignature.equals(signature) && targetVariables.containsAll(variables)) {
+            if (targetStatement.equals(statement) && targetVariables.containsAll(variables)) {
                 return true;
             }
         }

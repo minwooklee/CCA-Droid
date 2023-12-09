@@ -32,7 +32,6 @@ public class ProgramSlicer {
     private final Deque<SlicingCriterion> deque;
     private final HashMap<String, ArrayList<Unit>> unitsMap;
     private final HashMap<Unit, HashSet<SlicingCriterion>> tempSlicingCriteriaMap;
-    private HashSet<Value> newTargetVariables;
 
     public ProgramSlicer() {
         codeInspector = CodeInspector.getInstance();
@@ -77,11 +76,6 @@ public class ProgramSlicer {
                 return constants;
             }
 
-            Value localValue = getLocalValue(unit, unitType);
-            if (localValue != null && newTargetVariables.contains(localValue)) {
-                return constants;
-            }
-
             ArrayList<String> paramTypes = getParamTypes(signature);
             ArrayList<Value> paramValues = getParamValues(unit, unitType);
             int size = paramTypes.size();
@@ -97,9 +91,11 @@ public class ProgramSlicer {
                     continue;
                 }
 
-                if (!valueStr.equals("null")) {
-                    constants.add(valueStr);
+                if (valueStr.equals("null")) {
+                    continue;
                 }
+
+                constants.add(valueStr);
             }
         } else if (unitType == ASSIGN_VARIABLE_CONSTANT || unitType == ASSIGN_SIGNATURE_CONSTANT || unitType == RETURN_VALUE) {
             Value value = getRightValue(unit, unitType);
@@ -146,7 +142,7 @@ public class ProgramSlicer {
         HashMap<Integer, ArrayList<Unit>> switchTargetUnitsMap = codeInspector.getTargetUnitsMap(callerName);
         Set<Map.Entry<Integer, ArrayList<Unit>>> switchTargetUnitSet = (switchTargetUnitsMap == null) ? null : switchTargetUnitsMap.entrySet();
 
-        newTargetVariables = new HashSet<>(startTargetVariables);
+        HashSet<Value> newTargetVariables = new HashSet<>(startTargetVariables);
         ArrayList<String> newParamNumbers = new ArrayList<>();
 
         ArrayList<Unit> units = new ArrayList<>();
@@ -254,8 +250,7 @@ public class ProgramSlicer {
                         addTargetVariable(newValue, newTargetVariables);
                     } else if (className.equals("android.util.Log") || className.equals("kotlin.jvm.internal.Intrinsics")) {
                         continue;
-                    } else if (targetStatement.equals("<javax.crypto.Mac: void doFinal(byte[],int)>") &&
-                            className.equals("javax.crypto.Mac") && methodName.equals("update")) {
+                    } else if (targetStatement.equals("<javax.crypto.Mac: void doFinal(byte[],int)>") && className.equals("javax.crypto.Mac") && methodName.equals("update")) {
                         Value newValue = paramValues.get(0);
                         addTargetVariable(newValue, newTargetVariables);
                     } else {
@@ -296,8 +291,8 @@ public class ProgramSlicer {
                 }
 
                 case PARAMETER: {
-                    String paramNumber = getParamNumber(unitStr, unitType);
-                    newParamNumbers.add(0, paramNumber);
+                    String paramNum = getParamNumber(unitStr, unitType);
+                    newParamNumbers.add(0, paramNum);
                     break;
                 }
 
@@ -545,7 +540,7 @@ public class ProgramSlicer {
         line.append(UNIT_STRING, unitStr);
         line.append(UNIT_TYPE, unitType);
         line.append(CALLER_NAME, callerName);
-        line.append(LINE_NUM, lineNum);
+        line.append(LINE_NUMBER, lineNum);
         if ((unitType & INVOKE) == INVOKE || unitType == ASSIGN_VARIABLE_CONSTANT || unitType == ASSIGN_SIGNATURE_CONSTANT || unitType == RETURN_VALUE) {
             ArrayList<String> constants = getConstants(unit, unitType);
             if (!constants.isEmpty()) {

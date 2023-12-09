@@ -276,7 +276,12 @@ public class SliceOptimizer {
         int n1 = Integer.parseInt(leftValueStr);
         int n2 = Integer.parseInt(rightValueStr);
 
+        return getIfStatementResult(conditionValue, n1, n2);
+    }
+
+    private int getIfStatementResult(Value conditionValue, int n1, int n2) {
         boolean flag;
+
         if (conditionValue instanceof JGeExpr) {
             flag = (n1 >= n2);
         } else if (conditionValue instanceof JGtExpr) {
