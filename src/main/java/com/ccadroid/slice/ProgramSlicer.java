@@ -68,6 +68,10 @@ public class ProgramSlicer {
             String signature = getSignature(unit);
             String className = getClassName(signature);
             String methodName = getMethodName(signature);
+            if (className.equals("java.lang.String") && (methodName.equals("getBytes") || methodName.equals("format"))) {
+                return constants;
+            }
+
             if (className.equals("java.lang.System") && methodName.equals("arraycopy")) {
                 return constants;
             }
@@ -297,10 +301,24 @@ public class ProgramSlicer {
                 }
 
                 case NEW_INSTANCE:
-                case NEW_ARRAY:
-                case ASSIGN_VARIABLE_CONSTANT: {
+                case NEW_ARRAY: {
                     Value value = getLeftValue(unit, unitType);
                     if (!retainVariables.contains(value)) {
+                        continue;
+                    }
+
+                    break;
+                }
+
+                case ASSIGN_VARIABLE_CONSTANT: {
+                    Value leftValue = getLeftValue(unit, unitType);
+                    if (!retainVariables.contains(leftValue)) {
+                        continue;
+                    }
+
+                    Unit prevUnit = reversedUnits.get(i - 1);
+                    int prevUnitType = getUnitType(prevUnit);
+                    if (codeInspector.isLoopStatement(prevUnit, prevUnitType, reversedUnits)) {
                         continue;
                     }
 

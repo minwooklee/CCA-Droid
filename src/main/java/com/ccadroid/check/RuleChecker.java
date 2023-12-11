@@ -120,6 +120,10 @@ public class RuleChecker {
                     ArrayList<String> paramValues = getParamValues(unitStr);
                     targetVariable = paramValues.get(0);
                     continue;
+                } else if (className.equals("java.util.Map") && methodName.equals("put")) {
+                    ArrayList<String> paramValues = getParamValues(unitStr);
+                    targetVariable = paramValues.get(1);
+                    continue;
                 }
 
                 if (targetSignature != null && unitStr.contains(targetSignature)) {
@@ -142,8 +146,12 @@ public class RuleChecker {
             } else if (unitType == PARAMETER) {
                 String paramNum = getParamNumber(unitStr, unitType);
                 extractLines(content, null, l.getString(CALLER_NAME), paramNum, targetLines);
+            } else if (unitType == NEW_INSTANCE) {
+                break;
             } else if (unitType == ASSIGN_VARIABLE_CONSTANT) {
                 break;
+            } else if (unitType == CAST) {
+                targetVariable = getRightInternalValue(unitStr, unitType);
             }
         }
     }
@@ -565,12 +573,9 @@ public class RuleChecker {
         List<Document> targetLines = new ArrayList<>();
 
         List<String> targetParamNumbers = slice.getList(TARGET_PARAM_NUMBERS, String.class);
-        if (targetParamNumbers != null) {
-            List<String> targetVariables = slice.getList(TARGET_VARIABLES, String.class);
-            String targetVariable = (targetParamNumbers.contains("-1")) ? targetVariables.get(1) : targetVariables.get(0);
-            extractLines(content, targetVariable, null, null, targetLines);
-        }
-
+        List<String> targetVariables = slice.getList(TARGET_VARIABLES, String.class);
+        String targetVariable = (targetParamNumbers == null) ? targetVariables.get(0) : (targetParamNumbers.contains("-1")) ? targetVariables.get(1) : targetVariables.get(0);
+        extractLines(content, targetVariable, null, null, targetLines);
         if (targetLines.isEmpty()) {
             return null;
         }
@@ -580,9 +585,9 @@ public class RuleChecker {
             return oldUnitStr;
         }
 
-        String newUnitStr = findSecureUnitString(targetLines, targetSignatures);
+        String newUnitStr = findSecureUnitString(content, targetSignatures);
 
-        return findLateUnitString(targetLines, oldUnitStr, newUnitStr);
+        return findLateUnitString(content, oldUnitStr, newUnitStr);
     }
 
     private String checkConstant(List<Document> content, Object object) {

@@ -319,6 +319,14 @@ public class SootUnit {
         return value;
     }
 
+    public static String getRightInternalValue(String unitStr, int unitType) {
+        if (unitType != CAST) {
+            return null;
+        }
+
+        return unitStr.split(" ")[3];
+    }
+
     public static ArrayList<String> convertToStrings(ArrayList<Value> values) {
         ArrayList<String> strings = new ArrayList<>();
 
