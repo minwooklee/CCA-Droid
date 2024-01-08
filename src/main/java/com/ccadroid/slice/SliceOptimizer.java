@@ -188,6 +188,10 @@ public class SliceOptimizer {
                 for (int j = 0; j < paramValues.size(); j++) {
                     Value value = paramValues.get(j);
                     String valueStr = convertToStr(value);
+                    if (valueStr.equals("null")) {
+                        continue;
+                    }
+
                     targetValueMap.put(IntConstant.v(j), valueStr);
                 }
             } else if (unitType == ASSIGN_VARIABLE_CONSTANT) {

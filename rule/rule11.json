@@ -12,6 +12,7 @@
 		"description": "This method uses insecure padding for RSA algorithm",
 		"conditions": {
 			"targetAlgorithms": [
+				"RSA",
 				"RSA/.*/NoPadding",
 				"RSA/.*/PKCS1Padding"
 			]

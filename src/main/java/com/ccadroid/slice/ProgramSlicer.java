@@ -51,7 +51,7 @@ public class ProgramSlicer {
 
     public void sliceStatements(SlicingCriterion slicingCriterion) {
         String leafId = String.valueOf(slicingCriterion.hashCode());
-        sliceMerger.addNode(leafId, leafId, leafId, 0);
+        sliceMerger.addNode(leafId, leafId, 0);
 
         deque.add(slicingCriterion);
 
@@ -120,14 +120,13 @@ public class ProgramSlicer {
 
     private void sliceStatement(SlicingCriterion slicingCriterion) {
         String nodeId = String.valueOf(slicingCriterion.hashCode());
-        String query = "{'" + NODE_ID + "': '" + nodeId + "'}";
+        String query = "{'" + NODE_ID + "': '" + nodeId + "'}, {'" + CALLER_NAME + "': {$exists: true}}";
         Document slice = sliceDatabase.findSlice(query);
         if (slice != null) {
             return;
         }
 
         Node node = sliceMerger.getNode(nodeId);
-        String groupId = (String) node.getAttribute(GROUP_ID);
 
         String callerName = slicingCriterion.getCallerName();
         String targetStatement = slicingCriterion.getTargetStatement();
@@ -235,7 +234,9 @@ public class ProgramSlicer {
                     String methodName = getMethodName(signature);
                     ArrayList<Value> paramValues = getParamValues(unit, unitType);
 
-                    if (className.equals("java.lang.System") && methodName.equals("arraycopy")) {
+                    if (className.endsWith("Exception")) {
+                        continue;
+                    } else if (className.equals("java.lang.System") && methodName.equals("arraycopy")) {
                         Value oldValue = paramValues.get(2);
                         if (!retainVariables.contains(oldValue)) {
                             continue;
@@ -254,16 +255,23 @@ public class ProgramSlicer {
                         addTargetVariable(newValue, newTargetVariables);
                     } else if (className.equals("android.util.Log") || className.equals("kotlin.jvm.internal.Intrinsics")) {
                         continue;
-                    } else if (targetStatement.equals("<javax.crypto.Mac: void doFinal(byte[],int)>") && className.equals("javax.crypto.Mac") && methodName.equals("update")) {
-                        Value newValue = paramValues.get(0);
-                        addTargetVariable(newValue, newTargetVariables);
+                    } else if (className.equals("javax.crypto.Mac") && methodName.equals("update")) {
+                        String targetClassName = ((startUnitType & INVOKE) == INVOKE) ? getClassName(targetStatement) : null;
+                        String targetMethodName = ((startUnitType & INVOKE) == INVOKE) ? getMethodName(targetStatement) : null;
+                        if (targetClassName != null && targetClassName.equals("javax.crypto.Mac") && targetMethodName != null && targetMethodName.equals("doFinal")) {
+                            Value value = paramValues.get(0);
+                            addTargetVariable(value, newTargetVariables);
+                        }
+                    } else if (className.equals("javax.crypto.spec.PBEKeySpec") && methodName.equals("<init>")) {
+                        Value value = paramValues.get(0);
+                        addTargetVariable(value, newTargetVariables);
                     } else {
                         Value localValue = getLocalValue(unit, unitType);
                         if (localValue != null) {
                             addTargetVariable(localValue, newTargetVariables);
                         }
 
-                        handleInvokeUnit(unit, node, groupId, signature);
+                        handleInvokeUnit(unit, node, signature);
                     }
 
                     break;
@@ -274,27 +282,41 @@ public class ProgramSlicer {
                 case ASSIGN_INTERFACE_INVOKE:
                 case ASSIGN_SPECIAL_INVOKE: {
                     String signature = getSignature(unitStr);
+                    String className = getClassName(signature);
                     String methodName = getMethodName(signature);
                     if (methodName.contains("$")) { // for virtual method
                         Value leftValue = getLeftValue(unit, unitType);
                         newTargetVariables.remove(leftValue);
                     }
 
-                    Value localValue = getLocalValue(unit, unitType);
-                    if (localValue == null) {
-                        ArrayList<String> paramTypes = getParamTypes(signature);
-                        ArrayList<Value> paramValues = getParamValues(unit, unitType);
-
-                        addTargetVariables(paramTypes, paramValues, newTargetVariables);
+                    ArrayList<Value> paramValues = getParamValues(unit, unitType);
+                    if (className.contains("java.util.Base64$Decoder") && methodName.equals("decode")) {
+                        Value value = paramValues.get(0);
+                        addTargetVariable(value, newTargetVariables);
+                    } else if (className.equals("javax.crypto.SecretKeyFactory") && methodName.equals("generateSecret")) {
+                        Value value = paramValues.get(0);
+                        addTargetVariable(value, newTargetVariables);
                     } else {
-                        addTargetVariable(localValue, newTargetVariables);
+                        Value localValue = getLocalValue(unit, unitType);
+                        if (localValue == null) {
+                            ArrayList<String> paramTypes = getParamTypes(signature);
+                            addTargetVariables(paramTypes, paramValues, newTargetVariables);
+                        } else {
+                            addTargetVariable(localValue, newTargetVariables);
+                        }
                     }
 
-                    handleInvokeUnit(unit, node, groupId, signature);
+                    handleInvokeUnit(unit, node, signature);
                     break;
                 }
 
                 case PARAMETER: {
+                    Value value = getLeftValue(unit, unitType);
+                    String valueStr = convertToStr(value);
+                    if (startsWithValueStr(content, valueStr)) {
+                        continue;
+                    }
+
                     String paramNum = getParamNumber(unitStr, unitType);
                     newParamNumbers.add(0, paramNum);
                     break;
@@ -349,7 +371,7 @@ public class ProgramSlicer {
                     }
 
                     String signature = getSignature(unitStr);
-                    handleAssignVariableSignatureUnit(unit, node, groupId, callerName, signature);
+                    handleAssignVariableSignatureUnit(unit, node, callerName, signature);
                     break;
                 }
 
@@ -392,13 +414,14 @@ public class ProgramSlicer {
 
         ArrayList<String> targetParamNumbers = slicingCriterion.getTargetParamNumbers();
         if (targetParamNumbers == null || !targetParamNumbers.isEmpty()) {
-            handleParameterUnit(node, groupId, callerName, newParamNumbers);
+            handleParameterUnit(node, callerName, newParamNumbers);
         }
 
         addTempSlicingCriteria(units);
         removeTempSlicingCriteria(unreachables);
 
-        sliceDatabase.insert(nodeId, groupId, callerName, targetStatement, startUnitIndex, targetParamNumbers, convertToStrings(startTargetVariables), content);
+        ArrayList<String> relatedNodeIds = sliceMerger.getRelatedNodeIds(nodeId);
+        sliceDatabase.insert(nodeId, relatedNodeIds, callerName, targetStatement, startUnitIndex, targetParamNumbers, convertToStrings(startTargetVariables), content);
     }
 
     private int getSwitchUnitIndex(Unit unit, Set<Map.Entry<Integer, ArrayList<Unit>>> switchTargetUnitSet) {
@@ -449,7 +472,7 @@ public class ProgramSlicer {
         }
     }
 
-    private void handleInvokeUnit(Unit unit, Node parent, String groupId, String calleeName) {
+    private void handleInvokeUnit(Unit unit, Node parent, String calleeName) {
         int level = (int) parent.getAttribute(LEVEL);
         if (level == LOWER_LEVEL) {
             return;
@@ -458,18 +481,18 @@ public class ProgramSlicer {
         }
 
         ArrayList<SlicingCriterion> slicingCriteria;
-        ArrayList<String> paramNumbers = new ArrayList<>();
+        ArrayList<String> targetParamNumbers = new ArrayList<>();
 
         int unitType = getUnitType(unit);
         if ((unitType & ASSIGN) == ASSIGN) { // for ASSIGN_INVOKE_UNIT
-            slicingCriteria = slicingCriteriaGenerator.createSlicingCriteria(calleeName, "return", RETURN_VALUE, paramNumbers);
+            slicingCriteria = slicingCriteriaGenerator.createSlicingCriteria(calleeName, "return", RETURN_VALUE, targetParamNumbers);
         } else {
-            slicingCriteria = slicingCriteriaGenerator.createSlicingCriteria(calleeName, "", INVOKE, paramNumbers);
+            slicingCriteria = slicingCriteriaGenerator.createSlicingCriteria(calleeName, "", INVOKE, targetParamNumbers);
         }
 
         for (SlicingCriterion sc : slicingCriteria) {
             String childId = String.valueOf(sc.hashCode());
-            Node child = sliceMerger.addNode(childId, childId, groupId, level);
+            Node child = sliceMerger.addNode(childId, childId, level);
             sliceMerger.addEdge(parent, child, DOWNWARD);
         }
 
@@ -477,13 +500,13 @@ public class ProgramSlicer {
         tempSlicingCriteriaMap.put(unit, tempSlicingCriteria);
     }
 
-    private void handleAssignVariableSignatureUnit(Unit unit, Node sibling, String groupId, String oldCallerName, String targetSignature) {
+    private void handleAssignVariableSignatureUnit(Unit unit, Node sibling, String oldCallerName, String targetSignature) {
         Node oldCaller = codeInspector.getNode(oldCallerName);
         int level = (int) sibling.getAttribute(LEVEL);
         String newSiblingId = String.valueOf(targetSignature.hashCode());
         Node newSibling = sliceMerger.getNode(newSiblingId);
         if (newSibling == null) {
-            newSibling = sliceMerger.addNode(newSiblingId, newSiblingId, groupId, level);
+            newSibling = sliceMerger.addNode(newSiblingId, newSiblingId, level);
             sliceMerger.addEdge(sibling, newSibling, NONE);
         }
 
@@ -512,7 +535,7 @@ public class ProgramSlicer {
             ArrayList<SlicingCriterion> slicingCriteria = slicingCriteriaGenerator.createSlicingCriteria(newCallerName, targetSignature, ASSIGN, null);
             for (SlicingCriterion sc : slicingCriteria) {
                 String parentId = String.valueOf(sc.hashCode());
-                Node parent = sliceMerger.addNode(parentId, parentId, groupId, level);
+                Node parent = sliceMerger.addNode(parentId, parentId, level);
                 sliceMerger.addEdge(newSibling, parent, UPWARD);
             }
 
@@ -522,8 +545,25 @@ public class ProgramSlicer {
         tempSlicingCriteriaMap.put(unit, tempSlicingCriteria);
     }
 
-    private void handleParameterUnit(Node child, String groupId, String calleeName, ArrayList<String> paramNumbers) {
-        if (paramNumbers.isEmpty()) {
+    private boolean startsWithValueStr(ArrayList<Document> contents, String valueStr) {
+        int contentSize = contents.size();
+
+        for (int i = 0; i < contentSize - 1; i++) {
+            Document line = contents.get(i);
+            String unitStr = line.getString(UNIT_STRING);
+            int unitType = line.getInteger(UNIT_TYPE);
+            if (unitStr.startsWith(valueStr) && (unitType == ASSIGN_VARIABLE_SIGNATURE || (unitType & ASSIGN_INVOKE) == ASSIGN_INVOKE)) {
+                return true;
+            } else if (unitStr.contains(valueStr) && unitType == IF) {
+                return false;
+            }
+        }
+
+        return false;
+    }
+
+    private void handleParameterUnit(Node child, String calleeName, ArrayList<String> targetParamNumbers) {
+        if (targetParamNumbers.isEmpty()) {
             return;
         }
 
@@ -541,10 +581,10 @@ public class ProgramSlicer {
             Node caller = e.getSourceNode();
             String callerName = caller.getId();
 
-            ArrayList<SlicingCriterion> slicingCriteria = slicingCriteriaGenerator.createSlicingCriteria(callerName, calleeName, INVOKE, paramNumbers);
+            ArrayList<SlicingCriterion> slicingCriteria = slicingCriteriaGenerator.createSlicingCriteria(callerName, calleeName, INVOKE, targetParamNumbers);
             for (SlicingCriterion sc : slicingCriteria) {
                 String parentId = String.valueOf(sc.hashCode());
-                Node parent = sliceMerger.addNode(parentId, parentId, groupId, level);
+                Node parent = sliceMerger.addNode(parentId, parentId, level);
                 sliceMerger.addEdge(child, parent, UPWARD);
                 deque.add(sc);
             }

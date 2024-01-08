@@ -4,9 +4,11 @@ import com.ccadroid.inspect.ApkParser;
 import soot.Scene;
 import soot.SootClass;
 import soot.options.Options;
+import soot.util.Chain;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Iterator;
 
 public class Soot {
 
@@ -45,6 +47,22 @@ public class Soot {
 
         Scene.v().loadBasicClasses();
         Scene.v().loadNecessaryClasses();
+    }
+
+    public static boolean isInterfaceOf(String typeName, ArrayList<String> targetTypes) {
+        SootClass class1 = getSootClass(typeName);
+        Chain<SootClass> interfaces = class1.getInterfaces();
+        Iterator<SootClass> iterator = interfaces.stream().iterator();
+
+        while (iterator.hasNext()) {
+            SootClass interfaceClass = iterator.next();
+            String className = interfaceClass.getName();
+            if (targetTypes.contains(className)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public static boolean isEnumClass(String className) {

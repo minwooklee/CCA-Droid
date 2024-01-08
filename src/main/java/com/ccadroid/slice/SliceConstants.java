@@ -6,7 +6,7 @@ public class SliceConstants {
     public static final String CALLER_NAME = "callerName";
     public static final String LINE_NUMBER = "lineNumber";
     public static final String NODE_ID = "nodeId";
-    public static final String GROUP_ID = "groupId";
+    public static final String RELATED_NODE_IDS = "relatedNodeIds";
     public static final String TARGET_STATEMENT = "targetStatement";
     public static final String TARGET_PARAM_NUMBERS = "targetParamNumbers";
     public static final String TARGET_VARIABLES = "targetVariables";

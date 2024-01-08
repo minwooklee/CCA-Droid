@@ -89,7 +89,8 @@ public class SlicingCriteriaGenerator {
             returnType = getReturnType(callerName);
         }
 
-        if (returnType != null && (!returnType.equals("int") && !returnType.contains("char") && !returnType.contains("String") && !returnType.contains("byte"))) {
+        List<String> targetReturnTypes = List.of("int", "char[]", "java.lang.String", "byte[]", "javax.crypto.SecretKey", "java.security.Key");
+        if (returnType != null && !targetReturnTypes.contains(returnType)) {
             return slicingCriteria;
         }
 
@@ -151,11 +152,6 @@ public class SlicingCriteriaGenerator {
                         }
 
                         int paramNum = Integer.parseInt(j);
-                        String type = paramTypes.get(paramNum);
-                        if (!type.equals("int") && !type.contains("String") && !type.contains("byte")) {
-                            continue;
-                        }
-
                         Value value = paramValues.get(paramNum);
                         targetVariables.add(value);
                     }

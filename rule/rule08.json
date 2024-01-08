@@ -1,11 +1,12 @@
 {
 	"slicingSignatures": {
-		"<javax.crypto.Cipher: void init(int,java.security.Key)>": [1],
-        "<javax.crypto.Cipher: void init(int,java.security.Key,java.security.SecureRandom)>": [1],
-        "<javax.crypto.Cipher: void init(int,java.security.Key,java.security.spec.AlgorithmParameterSpec)>": [1],
-        "<javax.crypto.Cipher: void init(int,java.security.Key,java.security.spec.AlgorithmParameterSpec,java.security.SecureRandom)>": [1],
-        "<javax.crypto.Cipher: void init(int,java.security.Key,java.security.AlgorithmParameters)>": [1],
-        "<javax.crypto.Cipher: void init(int,java.security.Key,java.security.AlgorithmParameters,java.security.SecureRandom)>": [1]
+		"<javax.crypto.spec.PBEKeySpec: void <init>(char[])>": [0],
+		"<javax.crypto.spec.PBEKeySpec: void <init>(char[],byte[],int)>": [0],
+		"<javax.crypto.spec.PBEKeySpec: void <init>(char[],byte[],int,int)>": [0],
+		"<javax.crypto.spec.DESKeySpec: void <init>(byte[])>": [0],
+		"<javax.crypto.spec.DESKeySpec: void <init>(byte[],int)>": [0],
+		"<javax.crypto.spec.SecretKeySpec: void <init>(byte[],java.lang.String)>": [0],
+		"<javax.crypto.spec.SecretKeySpec: void <init>(byte[],int,int,java.lang.String)>": [0]
 	},
 	"insecureRule": {
 		"ruleID": "8-1",

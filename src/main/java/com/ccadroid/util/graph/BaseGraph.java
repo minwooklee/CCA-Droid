@@ -49,6 +49,12 @@ public abstract class BaseGraph {
         return graph.getNode(id);
     }
 
+    protected List<Edge> getEdges(Node node) {
+        Stream<Edge> stream = node.edges();
+
+        return stream.collect(Collectors.toList());
+    }
+
     protected Edge getEdge(Node node1, Node node2, EdgeType type) {
         String id = getEdgeId(node1, node2, type);
         Edge edge = graph.getEdge(id);
@@ -85,7 +91,9 @@ public abstract class BaseGraph {
         } else if (type == EdgeType.DOWNWARD) {
             id = node1.getId() + "-->" + node2.getId();
         } else {
-            id = node1.getId() + "---" + node2.getId();
+            String id1 = node1.getId() + "---" + node2.getId();
+            String id2 = node2.getId() + "---" + node1.getId();
+            id = (graph.getEdge(id1) == null) ? id2 : id1;
         }
 
         return id;
@@ -98,8 +106,7 @@ public abstract class BaseGraph {
         }
 
         boolean flag = false;
-        Stream<Edge> stream = node.edges();
-        List<Edge> edges = stream.collect(Collectors.toList());
+        List<Edge> edges = getEdges(node);
         for (Edge e : edges) {
             Node node2 = isUpper ? e.getSourceNode() : e.getTargetNode();
             String id2 = node2.getId();

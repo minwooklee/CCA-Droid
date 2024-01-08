@@ -23,10 +23,10 @@ public class SliceDatabase {
         collection = database.getCollection(packageName);
     }
 
-    public void insert(String nodeId, String groupId, String callerName, String targetStatement, int startUnitIndex, ArrayList<String> targetParamNumbers, ArrayList<String> targetVariables, ArrayList<Document> content) {
+    public void insert(String nodeId, ArrayList<String> relatedNodeIds, String callerName, String targetStatement, int startUnitIndex, ArrayList<String> targetParamNumbers, ArrayList<String> targetVariables, ArrayList<Document> content) {
         Document document = new Document();
         document.append(NODE_ID, nodeId);
-        document.append(GROUP_ID, groupId);
+        document.append(RELATED_NODE_IDS, relatedNodeIds);
         document.append(CALLER_NAME, callerName);
         document.append(TARGET_STATEMENT, targetStatement);
         document.append(TARGET_PARAM_NUMBERS, targetParamNumbers);
@@ -37,9 +37,9 @@ public class SliceDatabase {
         collection.insertOne(document);
     }
 
-    public void insert(String id, String targetStatement, ArrayList<String> targetParamNumbers, ArrayList<String> targetVariables, ArrayList<Document> content) {
+    public void insert(String nodeId, String targetStatement, ArrayList<String> targetParamNumbers, ArrayList<String> targetVariables, ArrayList<Document> content) {
         Document document = new Document();
-        document.append(GROUP_ID, id);
+        document.append(NODE_ID, nodeId);
         document.append(TARGET_STATEMENT, targetStatement);
         document.append(TARGET_PARAM_NUMBERS, targetParamNumbers);
         document.append(TARGET_VARIABLES, targetVariables);
@@ -52,6 +52,18 @@ public class SliceDatabase {
         Document filter = Document.parse(query);
 
         return collection.find(filter);
+    }
+
+    public void update(Document document, String query) {
+        Document bson = Document.parse(query);
+
+        collection.updateOne(document, bson);
+    }
+
+    public void delete(String query) {
+        Document filter = Document.parse(query);
+
+        collection.deleteMany(filter);
     }
 
     public Document findSlice(String query) {

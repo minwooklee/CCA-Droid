@@ -5,6 +5,7 @@ import org.graphstream.graph.Node;
 import org.graphstream.graph.implementations.SingleGraph;
 
 import java.util.ArrayList;
+import java.util.List;
 
 public class CallGraph extends BaseGraph {
     public static final String LEVEL = "level";
@@ -26,6 +27,10 @@ public class CallGraph extends BaseGraph {
 
     public Node getNode(String id) {
         return super.getNode(id);
+    }
+
+    public List<Edge> getEdges(Node node) {
+        return super.getEdges(node);
     }
 
     public Edge getEdge(Node node1, Node node2, EdgeType type) {
