@@ -57,7 +57,7 @@ public class SlicingCriteriaGenerator {
                 continue;
             }
 
-            ArrayList<String> targetParamNumbers = sc.getTargetParamNumbers();
+            ArrayList<Integer> targetParamNumbers = sc.getTargetParamNumbers();
 
             Stream<Edge> stream = callee.edges();
             List<Edge> edges = stream.collect(Collectors.toList());
@@ -71,6 +71,10 @@ public class SlicingCriteriaGenerator {
                     listOfCallersMap.put(callerName, listOfCallers);
                 }
 
+                if (listOfCallers.isEmpty()) {
+                    continue;
+                }
+
                 ArrayList<SlicingCriterion> criteria = createSlicingCriteria(callerName, targetSignature, INVOKE, targetParamNumbers);
                 slicingCriteria.addAll(criteria);
             }
@@ -79,7 +83,7 @@ public class SlicingCriteriaGenerator {
         return slicingCriteria;
     }
 
-    public ArrayList<SlicingCriterion> createSlicingCriteria(String callerName, String targetStatement, int targetUnitType, ArrayList<String> targetParamNumbers) {
+    public ArrayList<SlicingCriterion> createSlicingCriteria(String callerName, String targetStatement, int targetUnitType, ArrayList<Integer> targetParamNumbers) {
         ArrayList<SlicingCriterion> slicingCriteria = new ArrayList<>();
 
         String returnType = null;
@@ -89,7 +93,7 @@ public class SlicingCriteriaGenerator {
             returnType = getReturnType(callerName);
         }
 
-        List<String> targetReturnTypes = List.of("int", "char[]", "java.lang.String", "byte[]", "javax.crypto.SecretKey", "java.security.Key");
+        List<String> targetReturnTypes = List.of("int", "char[]", "java.lang.String", "byte[]", "javax.crypto.SecretKey", "java.security.Key", "javax.crypto.Cipher");
         if (returnType != null && !targetReturnTypes.contains(returnType)) {
             return slicingCriteria;
         }
@@ -141,18 +145,17 @@ public class SlicingCriteriaGenerator {
                         continue;
                     }
 
-                    if (targetParamNumbers.contains("-1")) {
+                    if (targetParamNumbers.contains(-1)) {
                         Value value = getLocalValue(unit, unitType);
                         targetVariables.add(value);
                     }
 
-                    for (String j : targetParamNumbers) { // for multiple paramNumbers
-                        if (j.equals("-1")) {
+                    for (Integer j : targetParamNumbers) { // for multiple paramNumbers
+                        if (j == -1) {
                             continue;
                         }
 
-                        int paramNum = Integer.parseInt(j);
-                        Value value = paramValues.get(paramNum);
+                        Value value = paramValues.get(j);
                         targetVariables.add(value);
                     }
 
@@ -212,11 +215,11 @@ public class SlicingCriteriaGenerator {
                 Iterator<String> keys = signatures.keys();
                 while (keys.hasNext()) {
                     String signature = keys.next();
-                    ArrayList<String> paramNumbers = new ArrayList<>();
+                    ArrayList<Integer> paramNumbers = new ArrayList<>();
                     JSONArray jsonArr = signatures.getJSONArray(signature);
                     for (int i = 0; i < jsonArr.length(); i++) {
                         int paramNum = jsonArr.getInt(i);
-                        paramNumbers.add(String.valueOf(paramNum));
+                        paramNumbers.add(paramNum);
                     }
 
                     SlicingCriterion slicingCriterion = new SlicingCriterion();

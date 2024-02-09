@@ -4,9 +4,10 @@ import com.ccadroid.inspect.CodeInspector;
 import com.ccadroid.inspect.SlicingCriteriaGenerator;
 import com.ccadroid.inspect.SlicingCriterion;
 import com.ccadroid.util.Configuration;
-import org.bson.Document;
 import org.graphstream.graph.Edge;
 import org.graphstream.graph.Node;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import soot.Unit;
 import soot.Value;
 import soot.ValueBox;
@@ -61,23 +62,31 @@ public class ProgramSlicer {
         }
     }
 
-    public ArrayList<String> getConstants(Unit unit, int unitType) {
+    public JSONArray getConstants(Unit unit, int unitType) {
         ArrayList<String> constants = new ArrayList<>();
 
         if ((unitType & INVOKE) == INVOKE) {
             String signature = getSignature(unit);
             String className = getClassName(signature);
             String methodName = getMethodName(signature);
+            if (className.equals("java.util.Objects") && methodName.equals("requireNonNull")) {
+                return new JSONArray(constants);
+            }
+
             if (className.equals("java.lang.String") && (methodName.equals("getBytes") || methodName.equals("format"))) {
-                return constants;
+                return new JSONArray(constants);
             }
 
             if (className.equals("java.lang.System") && methodName.equals("arraycopy")) {
-                return constants;
+                return new JSONArray(constants);
+            }
+
+            if (className.equals("java.util.Arrays") && methodName.equals("copyOfRange")) {
+                return new JSONArray(constants);
             }
 
             if (className.startsWith("android")) {
-                return constants;
+                return new JSONArray(constants);
             }
 
             ArrayList<String> paramTypes = getParamTypes(signature);
@@ -111,7 +120,7 @@ public class ProgramSlicer {
             }
         }
 
-        return constants;
+        return new JSONArray(constants);
     }
 
     public ArrayList<Unit> getUnits(String nodeId) {
@@ -120,8 +129,8 @@ public class ProgramSlicer {
 
     private void sliceStatement(SlicingCriterion slicingCriterion) {
         String nodeId = String.valueOf(slicingCriterion.hashCode());
-        String query = "{'" + NODE_ID + "': '" + nodeId + "'}, {'" + CALLER_NAME + "': {$exists: true}}";
-        Document slice = sliceDatabase.findSlice(query);
+        List<String> query = List.of(String.format("%s==%s", NODE_ID, nodeId), String.format("/%s!=null", CALLER_NAME));
+        JSONObject slice = sliceDatabase.selectOne(query);
         if (slice != null) {
             return;
         }
@@ -146,11 +155,11 @@ public class ProgramSlicer {
         Set<Map.Entry<Integer, ArrayList<Unit>>> switchTargetUnitSet = (switchTargetUnitsMap == null) ? null : switchTargetUnitsMap.entrySet();
 
         HashSet<Value> newTargetVariables = new HashSet<>(startTargetVariables);
-        ArrayList<String> newParamNumbers = new ArrayList<>();
+        ArrayList<Integer> newParamNumbers = new ArrayList<>();
 
         ArrayList<Unit> units = new ArrayList<>();
         units.add(startUnit);
-        ArrayList<Document> content = new ArrayList<>();
+        ArrayList<JSONObject> content = new ArrayList<>();
         addLine(startUnit, startUnitType, callerName, startLineNum, content);
 
         for (int i = startUnitIndex + 1; i < wholeUnitCount; i++) {
@@ -181,7 +190,20 @@ public class ProgramSlicer {
 
                 Unit targetUnit = getTargetUnit(unit, unitType);
                 int targetUnitIndex = reversedUnits.indexOf(targetUnit);
-                if (targetUnit != null && startUnitIndex > targetUnitIndex) {
+                if (targetUnitIndex == -1) {
+                    continue;
+                }
+
+                int lastUnitIndex = reversedUnits.indexOf(units.get(0));
+                if (lastUnitIndex < targetUnitIndex) {
+                    continue;
+                }
+
+                Unit prevUnit = (targetUnitIndex > 0 && targetUnitIndex + 3 > i) ? reversedUnits.get(targetUnitIndex + 1) : null; // Minimum distance
+                Unit nextUnit = (targetUnitIndex > 0 && targetUnitIndex + 3 > i) ? reversedUnits.get(targetUnitIndex - 1) : null;
+                int prevUnitType = (prevUnit == null) ? -1 : getUnitType(prevUnit);
+                int nextUnitType = (nextUnit == null) ? -1 : getUnitType(nextUnit);
+                if (prevUnitType == GOTO || nextUnitType == GOTO) {
                     continue;
                 }
 
@@ -246,14 +268,9 @@ public class ProgramSlicer {
                         Value newValue = paramValues.get(0);
                         addTargetVariable(newValue, newTargetVariables);
                     } else if (className.equals("java.util.Map") && methodName.equals("put")) {
-                        Value oldValue = paramValues.get(0);
-                        if (!newTargetVariables.contains(oldValue)) {
-                            continue;
-                        }
-
                         Value newValue = paramValues.get(1);
                         addTargetVariable(newValue, newTargetVariables);
-                    } else if (className.equals("android.util.Log") || className.equals("kotlin.jvm.internal.Intrinsics")) {
+                    } else if (className.equals("android.util.Log") || className.startsWith("kotlin.jvm.internal")) {
                         continue;
                     } else if (className.equals("javax.crypto.Mac") && methodName.equals("update")) {
                         String targetClassName = ((startUnitType & INVOKE) == INVOKE) ? getClassName(targetStatement) : null;
@@ -318,7 +335,7 @@ public class ProgramSlicer {
                     }
 
                     String paramNum = getParamNumber(unitStr, unitType);
-                    newParamNumbers.add(0, paramNum);
+                    newParamNumbers.add(0, Integer.parseInt(paramNum));
                     break;
                 }
 
@@ -412,7 +429,7 @@ public class ProgramSlicer {
         sliceOptimizer.updateLines(updates, content);
         unitsMap.put(nodeId, units);
 
-        ArrayList<String> targetParamNumbers = slicingCriterion.getTargetParamNumbers();
+        ArrayList<Integer> targetParamNumbers = slicingCriterion.getTargetParamNumbers();
         if (targetParamNumbers == null || !targetParamNumbers.isEmpty()) {
             handleParameterUnit(node, callerName, newParamNumbers);
         }
@@ -481,7 +498,7 @@ public class ProgramSlicer {
         }
 
         ArrayList<SlicingCriterion> slicingCriteria;
-        ArrayList<String> targetParamNumbers = new ArrayList<>();
+        ArrayList<Integer> targetParamNumbers = new ArrayList<>();
 
         int unitType = getUnitType(unit);
         if ((unitType & ASSIGN) == ASSIGN) { // for ASSIGN_INVOKE_UNIT
@@ -507,6 +524,10 @@ public class ProgramSlicer {
         Node newSibling = sliceMerger.getNode(newSiblingId);
         if (newSibling == null) {
             newSibling = sliceMerger.addNode(newSiblingId, newSiblingId, level);
+        }
+
+        boolean hasEdges = sliceMerger.hasEdges(sibling, newSibling);
+        if (!hasEdges) {
             sliceMerger.addEdge(sibling, newSibling, NONE);
         }
 
@@ -545,13 +566,13 @@ public class ProgramSlicer {
         tempSlicingCriteriaMap.put(unit, tempSlicingCriteria);
     }
 
-    private boolean startsWithValueStr(ArrayList<Document> contents, String valueStr) {
+    private boolean startsWithValueStr(ArrayList<JSONObject> contents, String valueStr) {
         int contentSize = contents.size();
 
         for (int i = 0; i < contentSize - 1; i++) {
-            Document line = contents.get(i);
+            JSONObject line = contents.get(i);
             String unitStr = line.getString(UNIT_STRING);
-            int unitType = line.getInteger(UNIT_TYPE);
+            int unitType = line.getInt(UNIT_TYPE);
             if (unitStr.startsWith(valueStr) && (unitType == ASSIGN_VARIABLE_SIGNATURE || (unitType & ASSIGN_INVOKE) == ASSIGN_INVOKE)) {
                 return true;
             } else if (unitStr.contains(valueStr) && unitType == IF) {
@@ -562,7 +583,7 @@ public class ProgramSlicer {
         return false;
     }
 
-    private void handleParameterUnit(Node child, String calleeName, ArrayList<String> targetParamNumbers) {
+    private void handleParameterUnit(Node child, String calleeName, ArrayList<Integer> targetParamNumbers) {
         if (targetParamNumbers.isEmpty()) {
             return;
         }
@@ -591,22 +612,22 @@ public class ProgramSlicer {
         }
     }
 
-    private void addLine(Unit unit, int unitType, String callerName, int lineNum, ArrayList<Document> slice) {
+    private void addLine(Unit unit, int unitType, String callerName, int lineNum, ArrayList<JSONObject> slice) {
         String unitStr = unit.toString();
 
-        Document line = new Document();
-        line.append(UNIT_STRING, unitStr);
-        line.append(UNIT_TYPE, unitType);
-        line.append(CALLER_NAME, callerName);
-        line.append(LINE_NUMBER, lineNum);
+        JSONObject line = new JSONObject();
+        line.put(UNIT_STRING, unitStr);
+        line.put(UNIT_TYPE, unitType);
+        line.put(CALLER_NAME, callerName);
+        line.put(LINE_NUMBER, lineNum);
         if ((unitType & INVOKE) == INVOKE || unitType == ASSIGN_VARIABLE_CONSTANT || unitType == ASSIGN_SIGNATURE_CONSTANT || unitType == RETURN_VALUE) {
-            ArrayList<String> constants = getConstants(unit, unitType);
+            JSONArray constants = getConstants(unit, unitType);
             if (!constants.isEmpty()) {
-                line.append(CONSTANTS, constants);
+                line.put(CONSTANTS, constants);
             }
         } else if (unitType == NEW_ARRAY) {
             String size = getArraySize(unit, unitType);
-            line.append(ARRAY_SIZE, size);
+            line.put(ARRAY_SIZE, size);
         }
 
         slice.add(0, line);

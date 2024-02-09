@@ -3,9 +3,10 @@ package com.ccadroid.slice;
 import com.ccadroid.inspect.SlicingCriterion;
 import com.ccadroid.util.graph.BaseGraph.EdgeType;
 import com.ccadroid.util.graph.CallGraph;
-import org.bson.Document;
 import org.graphstream.graph.Edge;
 import org.graphstream.graph.Node;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import soot.Unit;
 
 import java.util.ArrayList;
@@ -43,6 +44,10 @@ public class SliceMerger {
 
     public List<Edge> getEdges(Node node) {
         return callGraph.getEdges(node);
+    }
+
+    public boolean hasEdges(Node node1, Node node2) {
+        return callGraph.hasEdge(node1, node2);
     }
 
     public void addEdge(Node node1, Node node2, EdgeType type) {
@@ -92,31 +97,33 @@ public class SliceMerger {
 
     public void mergeSlices(SlicingCriterion slicingCriterion) {
         String nodeId = String.valueOf(slicingCriterion.hashCode());
-        String query1 = "{'" + NODE_ID + "': '" + nodeId + "', '" + CALLER_NAME + "': {$exists: false}}";
-        Document mergedSlice = sliceDatabase.findSlice(query1);
+        List<String> query1 = List.of(String.format("%s==%s", NODE_ID, nodeId), String.format("/%s==null", CALLER_NAME));
+        JSONObject mergedSlice = sliceDatabase.selectOne(query1);
         if (mergedSlice != null) {
             return;
         }
 
         String targetStatement = slicingCriterion.getTargetStatement();
-        ArrayList<String> targetParamNumbers = slicingCriterion.getTargetParamNumbers();
+        ArrayList<Integer> targetParamNumbers = slicingCriterion.getTargetParamNumbers();
         ArrayList<String> targetVariables = convertToStrings(slicingCriterion.getTargetVariables());
 
         ArrayList<ArrayList<String>> listOfIds = callGraph.getListOfIds(nodeId, true);
         for (ArrayList<String> ids : listOfIds) {
-            ArrayList<Document> slices = new ArrayList<>();
-            ArrayList<Document> mergedContent = new ArrayList<>();
+            ArrayList<JSONObject> slices = new ArrayList<>();
+            ArrayList<JSONObject> mergedContent = new ArrayList<>();
 
             for (String id : ids) {
-                String query2 = "{'" + NODE_ID + "': '" + id + "', '" + CALLER_NAME + "': {$exists: true}}";
-                Document slice = sliceDatabase.findSlice(query2);
+                List<String> query2 = List.of(String.format("%s==%s", NODE_ID, id), String.format("/%s!=null", CALLER_NAME));
+                JSONObject slice = sliceDatabase.selectOne(query2);
                 if (slice == null) {
                     continue;
                 }
 
                 slices.add(slice);
-                List<Document> content = slice.getList(CONTENT, Document.class);
-                mergedContent.addAll(content);
+                JSONArray content = slice.getJSONArray(CONTENT);
+                for (Object o : content) {
+                    mergedContent.add((JSONObject) o);
+                }
             }
 
             if (mergedContent.isEmpty()) {
@@ -128,7 +135,7 @@ public class SliceMerger {
             }
 
             if (ids.size() > 1) {
-                ArrayList<Document> unreachables = sliceOptimizer.getUnreachableLines(slices);
+                ArrayList<JSONObject> unreachables = sliceOptimizer.getUnreachableLines(slices);
                 mergedContent.removeAll(unreachables);
                 removeUnreachableSlices(unreachables);
 
@@ -140,17 +147,17 @@ public class SliceMerger {
         }
     }
 
-    private boolean isStartingParameter(ArrayList<Document> slice) {
-        Document line = slice.get(0);
-        int unitType = line.getInteger(UNIT_TYPE);
+    private boolean isStartingParameter(ArrayList<JSONObject> slice) {
+        JSONObject line = slice.get(0);
+        int unitType = line.getInt(UNIT_TYPE);
 
         return (unitType == PARAMETER);
     }
 
-    private void removeUnreachableSlices(ArrayList<Document> unreachables) {
-        for (Document d : unreachables) {
-            String unitStr = d.getString(UNIT_STRING);
-            int unitType = d.getInteger(UNIT_TYPE);
+    private void removeUnreachableSlices(ArrayList<JSONObject> unreachables) {
+        for (JSONObject l : unreachables) {
+            String unitStr = l.getString(UNIT_STRING);
+            int unitType = l.getInt(UNIT_TYPE);
             String callerName = null;
             String targetStatement = null;
 
@@ -158,11 +165,15 @@ public class SliceMerger {
                 callerName = getSignature(unitStr);
                 targetStatement = "return";
             } else if (unitType == ASSIGN_SIGNATURE_CONSTANT) {
-                callerName = d.getString(CALLER_NAME);
+                callerName = l.getString(CALLER_NAME);
                 targetStatement = getSignature(unitStr);
             }
 
-            String query = "{'" + CALLER_NAME + "':'" + callerName + "', '" + TARGET_STATEMENT + "':'" + targetStatement + "'}";
+            if (callerName == null) {
+                continue;
+            }
+
+            List<String> query = List.of(String.format("%s==%s", CALLER_NAME, callerName), String.format("%s==%s", TARGET_STATEMENT, targetStatement));
             sliceDatabase.delete(query);
         }
 

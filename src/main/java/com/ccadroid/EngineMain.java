@@ -57,7 +57,7 @@ public class EngineMain {
         ProgramSlicer slicer = ProgramSlicer.getInstance();
         SliceMerger sliceMerger = SliceMerger.getInstance();
         SliceDatabase database = SliceDatabase.getInstance();
-        database.initialize(packageName);
+        database.initialize();
 
         ArrayList<SlicingCriterion> slicingCriteria = slicingCriteriaGenerator.createSlicingCriteria(ruleFileDir);
         for (SlicingCriterion sc : slicingCriteria) {

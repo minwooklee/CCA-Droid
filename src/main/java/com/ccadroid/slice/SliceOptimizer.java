@@ -1,14 +1,19 @@
 package com.ccadroid.slice;
 
 import com.ccadroid.inspect.CodeInspector;
-import org.bson.Document;
+import org.apache.commons.lang3.math.NumberUtils;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import soot.Unit;
 import soot.Value;
 import soot.jimple.IntConstant;
 import soot.jimple.StringConstant;
 import soot.jimple.internal.*;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
 
 import static com.ccadroid.slice.SliceConstants.*;
 import static com.ccadroid.util.soot.SootUnit.*;
@@ -71,20 +76,24 @@ public class SliceOptimizer {
         return updates;
     }
 
-    public void updateLines(HashMap<Unit, Unit> updates, ArrayList<Document> content) {
+    public void updateLines(HashMap<Unit, Unit> updates, ArrayList<JSONObject> content) {
         ProgramSlicer slicer = ProgramSlicer.getInstance();
 
         Set<Map.Entry<Unit, Unit>> entries = updates.entrySet();
         for (Map.Entry<Unit, Unit> e : entries) {
             Unit oldUnit = e.getKey();
             Unit newUnit = e.getValue();
-            Document targetLine = findLine(content, oldUnit.toString());
+            JSONObject targetLine = findLine(content, oldUnit.toString());
             if (targetLine == null) {
                 continue;
             }
 
+            if (!targetLine.has(CONSTANTS)) {
+                continue;
+            }
+
             targetLine.put(UNIT_STRING, newUnit.toString());
-            List<String> constants = targetLine.getList(CONSTANTS, String.class);
+            JSONArray constants = targetLine.getJSONArray(CONSTANTS);
             if (constants == null) {
                 continue;
             }
@@ -95,14 +104,14 @@ public class SliceOptimizer {
         }
     }
 
-    public ArrayList<Document> getUnreachableLines(ArrayList<Document> slices) {
+    public ArrayList<JSONObject> getUnreachableLines(ArrayList<JSONObject> slices) {
         ProgramSlicer slicer = ProgramSlicer.getInstance();
         int slicesSize = slices.size();
         HashMap<Value, String> targetValueMap = new HashMap<>();
-        ArrayList<Document> lines = new ArrayList<>();
+        ArrayList<JSONObject> lines = new ArrayList<>();
 
         for (int i = 0; i < slicesSize; i++) {
-            Document slice = slices.get(i);
+            JSONObject slice = slices.get(i);
             String nodeId = slice.getString(NODE_ID);
             String callerName = slice.getString(CALLER_NAME);
             String targetStatement = slice.getString(TARGET_STATEMENT);
@@ -116,27 +125,28 @@ public class SliceOptimizer {
                 unitStrings.add(u.toString());
             }
 
-            List<Document> content = slice.getList(CONTENT, Document.class);
-            for (Document l : content) {
-                String unitStr = l.getString(UNIT_STRING);
+            JSONArray content = slice.getJSONArray(CONTENT);
+            for (Object o : content) {
+                JSONObject line = (JSONObject) o;
+                String unitStr = line.getString(UNIT_STRING);
                 if (!unitStrings.contains(unitStr)) {
                     continue;
                 }
 
-                lines.add(l);
+                lines.add(line);
             }
         }
 
         return lines;
     }
 
-    public HashMap<Unit, Unit> getInterpretedUnits(ArrayList<Document> slices) {
+    public HashMap<Unit, Unit> getInterpretedUnits(ArrayList<JSONObject> slices) {
         ProgramSlicer slicer = ProgramSlicer.getInstance();
         HashMap<Value, Unit> targetValueMap = new HashMap<>();
         HashMap<Unit, Unit> updates = new HashMap<>();
 
-        for (Document s : slices) {
-            String nodeId = s.getString(NODE_ID);
+        for (JSONObject l : slices) {
+            String nodeId = l.getString(NODE_ID);
             ArrayList<Unit> units = slicer.getUnits(nodeId);
             if (units == null) {
                 continue;
@@ -152,7 +162,9 @@ public class SliceOptimizer {
     private ArrayList<Unit> getUnreachableUnits(ArrayList<Unit> wholeUnit, ArrayList<Unit> units, String targetSignature, HashMap<Value, String> targetValueMap) {
         int wholeUnitCount = wholeUnit.size();
 
+        ArrayList<Unit> visitedUnits = new ArrayList<>();
         ArrayList<Unit> targetUnits = new ArrayList<>();
+
         for (int i = 0; i < wholeUnitCount; i++) {
             Unit unit = wholeUnit.get(i);
             if (units != null && !units.contains(unit)) {
@@ -162,6 +174,12 @@ public class SliceOptimizer {
             int unitType = getUnitType(unit);
             if (unitType == -1) {
                 continue;
+            }
+
+            if (visitedUnits.contains(unit)) {
+                continue;
+            } else {
+                visitedUnits.add(unit);
             }
 
             if ((unitType & INVOKE) == INVOKE) {
@@ -224,6 +242,10 @@ public class SliceOptimizer {
 
                 Unit targetUnit1 = getTargetUnit(unit, unitType);
                 int targetUnitIndex1 = wholeUnit.indexOf(targetUnit1);
+                if (targetUnitIndex1 == -1) {
+                    continue;
+                }
+
                 Unit prevUnit = wholeUnit.get(targetUnitIndex1 - 1);
                 int gotoUnitIndex = wholeUnit.indexOf(prevUnit);
                 if (result == 1) {
@@ -273,7 +295,7 @@ public class SliceOptimizer {
 
         String leftValueStr = targetValueMap.get(leftValue);
         String rightValueStr = targetValueMap.containsKey(rightValue) ? targetValueMap.get(rightValue) : convertToStr(rightValue);
-        if (leftValueStr == null || rightValueStr == null || isVariableStr(leftValueStr) || isVariableStr(rightValueStr)) {
+        if (!NumberUtils.isCreatable(leftValueStr) || !NumberUtils.isCreatable(rightValueStr)) {
             return -1;
         }
 
@@ -312,12 +334,12 @@ public class SliceOptimizer {
         return target;
     }
 
-    private Document findLine(List<Document> content, String targetUnitStr) {
+    private JSONObject findLine(ArrayList<JSONObject> content, String targetUnitStr) {
         if (targetUnitStr == null) {
             return null;
         }
 
-        for (Document l : content) {
+        for (JSONObject l : content) {
             String unitStr = l.getString(UNIT_STRING);
             if (unitStr.contains(targetUnitStr)) {
                 return l;

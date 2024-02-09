@@ -191,7 +191,7 @@ public class SootUnit {
     }
 
     public static Value getLocalValue(Unit unit, int unitType) {
-        if ((unitType & VIRTUAL_INVOKE) != VIRTUAL_INVOKE) {
+        if ((unitType & STATIC_INVOKE) == STATIC_INVOKE) {
             return null;
         }
 

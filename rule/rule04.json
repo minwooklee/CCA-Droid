@@ -7,9 +7,16 @@
 	"insecureRule": {
 		"ruleID": "4-1",
 		"description": "This method uses static salt for PBE",
-		"conditions": {
-			"targetConstant": ".*"
-		}
+		"conditions": [
+			{
+				"targetConstant": ".*"
+			},
+			{
+				"targetSignatures": [
+					"<java.lang.String: void <init>(java.lang.String)>"
+				]
+			}
+		]
 	},
 	"secureRule": {
 		"ruleID": "4-2",

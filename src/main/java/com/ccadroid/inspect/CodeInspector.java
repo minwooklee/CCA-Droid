@@ -165,12 +165,17 @@ public class CodeInspector {
         return wholeUnitMap.get(signature);
     }
 
-    public boolean isLoopStatement(Unit unit, int unitType, ArrayList<Unit> wholeUnit) {
+    public boolean isLoopStatement(Unit unit, int unitType, ArrayList<Unit> reversedUnits) {
         Unit targetUnit = getTargetUnit(unit, unitType);
 
         if (unitType == IF) {
-            int targetUnitIndex = wholeUnit.indexOf(targetUnit);
-            Unit prevUnit = wholeUnit.get(targetUnitIndex + 1);
+            int targetUnitIndex = reversedUnits.indexOf(targetUnit);
+            int prevUnitIndex = targetUnitIndex + 1;
+            if (prevUnitIndex == reversedUnits.size()) {
+                return false;
+            }
+
+            Unit prevUnit = reversedUnits.get(prevUnitIndex);
             int prevUnitType = getUnitType(prevUnit);
             if (prevUnitType == GOTO) {
                 targetUnit = getTargetUnit(prevUnit, prevUnitType);
@@ -180,8 +185,8 @@ public class CodeInspector {
         } else {
             int targetUnitType = getUnitType(targetUnit);
             Unit tempUnit = getTargetUnit(targetUnit, targetUnitType);
-            int tempUnitIndex = wholeUnit.indexOf(tempUnit);
-            Unit prevUnit = wholeUnit.get(tempUnitIndex + 1);
+            int tempUnitIndex = reversedUnits.indexOf(tempUnit);
+            Unit prevUnit = reversedUnits.get(tempUnitIndex + 1);
 
             return (unit == prevUnit);
         }

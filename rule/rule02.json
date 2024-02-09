@@ -11,13 +11,25 @@
 	"insecureRule": {
 		"ruleID": "2-1",
 		"description": "This method uses the ECB algorithm and encrypts at least 1 block",
-        "conditions": {
-            "targetAlgorithms": [
-				"AES/ECB"
-			],
-            "targetConstant": ".*",
-        	"targetConstantLength": "x>8"
-        }
+		"conditions": [
+			{
+				"targetAlgorithms": [
+					"AES/ECB"
+				],
+				"targetConstant": ".*",
+				"targetConstantLength": "x>8"
+			},
+			{
+				"targetAlgorithms": [
+					"AES/ECB"
+				],
+				"targetSignatures": [
+					"<java.lang.String: void <init>(java.lang.String)>",
+					"<android.content.SharedPreferences: java.lang.String getString(java.lang.String,java.lang.String)>",
+					"<android.widget.EditText: android.text.Editable getText()>"
+				]
+			}
+		]
 	},
 	"secureRule": {
 		"ruleID": "2-2",

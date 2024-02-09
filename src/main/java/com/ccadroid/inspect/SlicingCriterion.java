@@ -8,7 +8,7 @@ public class SlicingCriterion {
     private String callerName;
     private String targetStatement;
     private int targetUnitIndex;
-    private ArrayList<String> targetParamNumbers;
+    private ArrayList<Integer> targetParamNumbers;
     private ArrayList<Value> targetVariables;
 
     public String getCallerName() {
@@ -35,11 +35,11 @@ public class SlicingCriterion {
         this.targetUnitIndex = targetUnitIndex;
     }
 
-    public ArrayList<String> getTargetParamNumbers() {
+    public ArrayList<Integer> getTargetParamNumbers() {
         return targetParamNumbers;
     }
 
-    public void setTargetParamNumbers(ArrayList<String> targetParamNumbers) {
+    public void setTargetParamNumbers(ArrayList<Integer> targetParamNumbers) {
         this.targetParamNumbers = targetParamNumbers;
     }
 
